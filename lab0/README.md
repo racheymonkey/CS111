@@ -3,18 +3,23 @@ TODO: intro
 
 ## Building
 ```shell
-TODO: cmd for build
+cmd for build:
+make
 ```
 
 ## Running
 ```shell
-TODO: cmd for running binary
+cmd for running binary:
+sudo insmod proc_count.ko
+cat /proc/count
+
 ```
-TODO: results?
+Result: Terminal outputs the number of processes currently running.
 
 ## Cleaning Up
 ```shell
-TODO: cmd for cleaning the built binary
+cmd for cleaning the built binary:
+make clean
 ```
 
 ## Testing
