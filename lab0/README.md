@@ -26,7 +26,11 @@ make clean
 ```python
 python -m unittest
 ```
-TODO: results?
+Result: Terminal outputs whether or not the test cases fail or succeed. If it succeeds, it outputs the following (excluding some buffer lines):
+
+Ran 3 tests in 7.859s
+
+OK
 
 Report which kernel release version you tested your module on
 (hint: use `uname`, check for options with `man uname`).
@@ -35,4 +39,4 @@ It should match release numbers as seen on https://www.kernel.org/.
 ```shell
 uname -r -s -v
 ```
-TODO: kernel ver?
+Kernel Version: 5.14.8-arch-1
