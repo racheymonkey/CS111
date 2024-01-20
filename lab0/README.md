@@ -13,7 +13,7 @@ Explanation: This command executes the instruction within the Makefile to build 
 Command for Running Binary:
 sudo insmod proc_count.ko
 cat /proc/count
-Explanation: The first command loads the binary file 'proc_count.ko' that was created into the Linux kernel or the /proc filesystem. The second command will then display the contents of the /proc/count virtual file, which I programmed to output the number of processes that are currently running.
+Explanation: The first command loads the binary file 'proc_count.ko' that was created into the Linux kernel which interacts with the /proc filesystem to create the /proc/count virtual file. The second command will then display the contents of /proc/count, which I coded to output the number of processes that are currently running.
 
 ```
 Result: Terminal outputs the number of processes currently running. I typically got an output of 137 or 136.
