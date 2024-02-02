@@ -18,10 +18,7 @@ int main(int argc, char *argv[]) {
     
     // store child process status
     int status;
-
-    // track if any child process fails
-    int any_child_failed = 0;
-
+    
     // creating pipes for communication among processes
     for (int i = 0; i < argc - 2; i++) {
         if (pipe(pipes[i]) == -1) {
@@ -76,13 +73,8 @@ int main(int argc, char *argv[]) {
 
         // if child process exited with error, so does the parent
         if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-            any_child_failed = 1; // mark that a child process failed
+            exit(WEXITSTATUS(status));
         }
-    }
-
-    // if any child process exits with error, parent exits with 1
-    if (any_child_failed) {
-        exit(errno);
     }
 
     // if all child process exits properly, return 0
