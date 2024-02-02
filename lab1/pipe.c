@@ -62,6 +62,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // slose all remaining open pipes in parent
+    for (int i = 0; i < argc - 2; i++) {
+        close(pipes[i][0]);
+        close(pipes[i][1]);
+    }
+
     // parent waits for all child processes to finish
     for (int i = 1; i < argc; i++) {
         // wait for child processes to exit
