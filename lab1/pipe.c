@@ -5,9 +5,25 @@
 #include <errno.h>
 
 int main(int argc, char *argv[]) {
-    if (argc < 1) {
+    if (argc < 2) {
         // The lab specifies to exit with errno EINVAL if no commands are given.
         exit(EINVAL);
+    }
+
+        // Skip pipe creation and directly execute the command if only one command is provided
+    if (argc == 2) {
+        pid_t pid = fork();
+        if (pid == -1) {
+            exit(errno);
+        }
+
+        if (pid == 0) { // Child process
+            execlp(argv[1], argv[1], (char *)NULL);
+            exit(errno); // In case execlp fails
+        } else { // Parent process
+            wait(NULL); // Wait for the child process to finish
+            return 0;
+        }
     }
 
     int pipes[argc - 1][2]; // One less than argc since argc includes the program name
