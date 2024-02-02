@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
 
             execlp(argv[i], argv[i], (char *)NULL);
             perror("execlp");
-            exit(exit(1));
+            exit(1);
         } else { // Parent process
             if (i != 1) {
                 close(pipes[i - 2][0]); // Close read end of the previous pipe
