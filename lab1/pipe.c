@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < argc - 2; i++) {
         if (pipe(pipes[i]) == -1) {
             perror("pipe");
-            exit(1);
+            exit(errno);
         }
     }
 
@@ -27,21 +27,21 @@ int main(int argc, char *argv[]) {
         pid = fork();
         if (pid == -1) {
             perror("fork");
-            exit(1);
+            exit(errno);
         }
 
         if (pid == 0) { // Child process
             if (i != 1) { // If not the first command, get input from previous pipe
                 if (dup2(pipes[i - 2][0], STDIN_FILENO) == -1) {
                     perror("dup2");
-                    exit(1);
+                    exit(errno);
                 }
             }
 
             if (i != argc - 1) { // If not the last command, output to next pipe
                 if (dup2(pipes[i - 1][1], STDOUT_FILENO) == -1) {
                     perror("dup2");
-                    exit(1);
+                    exit(errno);
                 }
             }
 
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
 
             execlp(argv[i], argv[i], (char *)NULL);
             perror("execlp");
-            exit(1);
+            exit(errno);
         } else { // Parent process
             if (i != 1) {
                 close(pipes[i - 2][0]); // Close read end of the previous pipe
