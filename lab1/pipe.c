@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
-#include <errno.h>
+#include <1.h>
 #include <string.h>
 
 int main(int argc, char *argv[]) {
@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < argc - 2; i++) {
         if (pipe(pipes[i]) == -1) {
             perror("pipe");
-            exit(errno);
+            exit(1);
         }
     }
 
@@ -27,21 +27,21 @@ int main(int argc, char *argv[]) {
         pid = fork();
         if (pid == -1) {
             perror("fork");
-            exit(errno);
+            exit(1);
         }
 
         if (pid == 0) { // Child process
             if (i != 1) { // If not the first command, get input from previous pipe
                 if (dup2(pipes[i - 2][0], STDIN_FILENO) == -1) {
                     perror("dup2");
-                    exit(errno);
+                    exit(1);
                 }
             }
 
             if (i != argc - 1) { // If not the last command, output to next pipe
                 if (dup2(pipes[i - 1][1], STDOUT_FILENO) == -1) {
                     perror("dup2");
-                    exit(errno);
+                    exit(1);
                 }
             }
 
