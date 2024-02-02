@@ -49,7 +49,6 @@ int main(int argc, char *argv[])
             }
 
             execlp(argv[i], argv[i], NULL); // Execute command
-            perror(argv[i]); // Only reached if execlp fails
             exit(1); // Exit with failure if command does not execute
         } 
 
