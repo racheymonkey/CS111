@@ -76,6 +76,7 @@ int main(int argc, char *argv[]) {
 
         // if child process exited with error, so does the parent
         if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+            exit(WEXITSTATUS(status));
             errorOccurred = 1;
         }
     }
