@@ -84,7 +84,6 @@ int main(int argc, char *argv[]) {
         // If any child process failed, exit with a non-zero status
         exit(1);
     }
-}
 
     // if all child process exits properly, return 0
     return 0;
