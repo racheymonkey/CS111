@@ -18,8 +18,7 @@ int main(int argc, char *argv[])
     for (int i = 1; i < argc; i++) {
         if (i < argc - 1) { // Only create a pipe if there are more commands to execute
             if (pipe(fds) != 0) {
-                perror("pipe failed");
-                exit(EXIT_FAILURE); // Exit if pipe creation fails
+                exit(1); // Exit if pipe creation fails
             }
         }
 
@@ -27,8 +26,7 @@ int main(int argc, char *argv[])
 
         // fork failure
         if (pid == -1) { 
-            perror("fork failed");
-            exit(EXIT_FAILURE); // Exit if fork fails
+            exit(1); // Exit if fork fails
         } 
 
         // fork success, in child process
@@ -52,7 +50,7 @@ int main(int argc, char *argv[])
 
             execlp(argv[i], argv[i], NULL); // Execute command
             perror(argv[i]); // Only reached if execlp fails
-            exit(EXIT_FAILURE); // Exit with failure if command does not execute
+            exit(1); // Exit with failure if command does not execute
         } 
 
         // In parent process
@@ -68,8 +66,7 @@ int main(int argc, char *argv[])
             int st = 0;
             waitpid(pid, &st, 0); // Wait for child to complete
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "Command failed with error.\n");
-                exit(WEXITSTATUS(st)); // Exit immediately with the child's exit status
+                exit(1); // Exit immediately with the child's exit status
             }
         }
     }
