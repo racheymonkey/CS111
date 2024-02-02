@@ -65,8 +65,20 @@ int main(int argc, char *argv[]) {
     }
 
     // Parent waits for all child processes to finish
-    int status;
-    while ((wait(&status)) > 0);
+    for (int i = 1; i < argc; i++) {
+        pid = waitpid(-1, &status, 0);
+        if (pid == -1) {
+            exit(errno); // Exit with the errno set by waitpid failure
+        }
+
+        // If the child process exited with an error, reflect that in the parent's exit status.
+        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+            exit(WEXITSTATUS(status));
+        }
+    }
+
+    // If all child processes exited successfully, return 0.
+    return 0;
 
     return 0;
 }
