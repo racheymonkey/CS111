@@ -5,7 +5,7 @@
 #include <errno.h>
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
+    if (argc < 1) {
         // The lab specifies to exit with errno EINVAL if no commands are given.
         exit(EINVAL);
     }
