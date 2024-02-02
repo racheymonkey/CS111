@@ -77,6 +77,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // if any child process exits with error, parent exits with 1
+    if (any_child_failed) {
+        exit(1);
+    }
+
     // if all child process exits properly, return 0
     return 0;
 }
