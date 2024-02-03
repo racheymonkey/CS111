@@ -1,16 +1,3 @@
-
-
-Skip to content
-Using Gmail with screen readers
-
-Account storage is full
-You won't be able to send and receive emails soon, and you already can't save to Drive and back up to Google Photos. Clean up space or get more storage for as low as $9.99/month.
-Get storageClean up space
-Conversations
-200.09 GB of 200 GB (100%) used
-Terms · Privacy · Program Policies
-Last account activity: 20 minutes ago
-Details
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -85,5 +72,3 @@ int main(int argc, char *argv[])
 	}
 
 }
-pipe.c
-Displaying pipe.c.
