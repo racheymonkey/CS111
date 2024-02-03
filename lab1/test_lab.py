@@ -2,6 +2,7 @@ import pathlib
 import re
 import subprocess
 import unittest
+import tempfile
 
 class TestLab1(unittest.TestCase):
 
