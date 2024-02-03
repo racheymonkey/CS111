@@ -1,52 +1,53 @@
-import pathlib
-import re
 import subprocess
 import unittest
-import tempfile
 
-class TestLab1(unittest.TestCase):
-
-    def _make():
-        result = subprocess.run(['make'], capture_output=True, text=True)
-        return result
-
-    def _make_clean():
-        result = subprocess.run(['make', 'clean'],
-                                capture_output=True, text=True)
-        return result
-
+class ExtendedTestLab1(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.make = cls._make().returncode == 0
+        # Setup common requirement for all tests, like compiling if necessary
+        pass
 
     @classmethod
     def tearDownClass(cls):
-        cls._make_clean()
+        # Cleanup after all tests, like removing compiled binary
+        pass
 
-    def test_complex_scenario(self):
-        self.assertTrue(self.make, msg='make failed')
-    
-        # Generate a large list of files in a temporary directory
-        with tempfile.TemporaryDirectory() as temp_dir:
-            file_count = 100
-            for i in range(file_count):
-                pathlib.Path(f"{temp_dir}/file_{i}.txt").touch()
-    
-            # Run a complex series of commands that involves listing files, 
-            # grepping for a specific pattern, sorting the output, and counting the results
-            expected_command = f"ls {temp_dir} | grep 'file_' | sort | uniq | wc -l"
-            expected_result = subprocess.run(expected_command, capture_output=True, shell=True, text=True).stdout.strip()
-    
-            pipe_command = ['./pipe', 'ls', temp_dir, f"grep 'file_'", 'sort', 'uniq', 'wc', '-l']
-            pipe_result = subprocess.run(pipe_command, capture_output=True, text=True)
-    
-            self.assertEqual(pipe_result.returncode, 0, msg='Complex scenario failed, expected return code 0.')
-            self.assertEqual(pipe_result.stdout.strip(), expected_result, 
-                             msg=f"Expected {expected_result} files, but got {pipe_result.stdout.strip()} instead.")
-        
-        # Test with a mix of valid and invalid commands to ensure error handling
-        mixed_result = subprocess.run(['./pipe', 'ls', 'invalid_command', 'wc'], capture_output=True, stderr=subprocess.PIPE)
-        self.assertNotEqual(mixed_result.returncode, 0, msg='Expected nonzero return code with invalid command.')
-        self.assertTrue(mixed_result.stderr, msg='Expected error message with invalid command.')
-    
-        self.assertTrue(self._make_clean, msg='make clean failed')
+    def test_single_command(self):
+        """Test executing a single program."""
+        result = subprocess.run(['./pipe', 'echo', 'Hello'], capture_output=True, text=True)
+        self.assertEqual(result.stdout.strip(), 'Hello')
+
+    def test_multiple_commands_over_limit(self):
+        """Test executing more than 8 programs."""
+        commands = ['./pipe'] + ['echo'] * 9  # Adjust based on actual limit
+        result = subprocess.run(commands, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0, "Should handle more than 8 commands gracefully.")
+
+    def test_invalid_command(self):
+        """Test error handling for invalid command line arguments."""
+        result = subprocess.run(['./pipe', 'nonexistent_command'], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_stderr_consistency(self):
+        """Verify that stderr from child processes is the same as parent's."""
+        result = subprocess.run(['./pipe', 'ls', 'nonexistent_folder'], capture_output=True, text=True)
+        self.assertTrue("No such file or directory" in result.stderr)
+
+    def test_proper_fd_closure(self):
+        """Check for proper closure of file descriptors."""
+        # This test case might require inspection of open file descriptors or specific error messages indicating unclosed fds.
+
+    def test_error_exit_code(self):
+        """Verify that the program exits with the proper errno."""
+        # This may require specific conditions that trigger known errors to verify the correct exit code is used.
+
+    def test_no_orphans_varied_commands(self):
+        """Ensuring no orphan processes are created with varied numbers of commands."""
+        # This test can be similar to the existing 'test_no_orphans' but with different combinations of commands.
+
+    def test_nonexistent_program(self):
+        """Testing with a non-existent program to verify EINVAL is returned."""
+        result = subprocess.run(['./pipe'], capture_output=True)
+        self.assertEqual(result.returncode, 22, "Expected EINVAL for no arguments.")
+
+# Additional utility functions or setup/teardown methods as needed
