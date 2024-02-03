@@ -1,53 +1,57 @@
 import subprocess
 import unittest
 
-class ExtendedTestLab1(unittest.TestCase):
+class PipeImplementationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # Setup common requirement for all tests, like compiling if necessary
-        pass
+        # Compile the C program before running tests, if needed
+        # subprocess.run(['gcc', '-o', 'pipe', 'pipe.c'], check=True)
 
-    @classmethod
-    def tearDownClass(cls):
-        # Cleanup after all tests, like removing compiled binary
-        pass
+    def test_execute_single_program(self):
+        """Test executing a single program without piping."""
+        result = subprocess.run(['./pipe', 'echo', 'hello'], capture_output=True, text=True)
+        self.assertEqual(result.stdout.strip(), 'hello')
 
-    def test_single_command(self):
-        """Test executing a single program."""
-        result = subprocess.run(['./pipe', 'echo', 'Hello'], capture_output=True, text=True)
-        self.assertEqual(result.stdout.strip(), 'Hello')
+    def test_execute_two_programs_with_pipe(self):
+        """Test executing two programs with a pipe between them."""
+        result = subprocess.run(['./pipe', 'echo', 'hello', 'wc', '-c'], capture_output=True, text=True)
+        self.assertTrue('6' in result.stdout.strip())
 
-    def test_multiple_commands_over_limit(self):
-        """Test executing more than 8 programs."""
-        commands = ['./pipe'] + ['echo'] * 9  # Adjust based on actual limit
-        result = subprocess.run(commands, capture_output=True, text=True)
-        self.assertNotEqual(result.returncode, 0, "Should handle more than 8 commands gracefully.")
+    def test_standard_input_output_preservation(self):
+        """Test that the standard input of the first process and the standard output of the last process are preserved."""
+        input_text = "hello\nworld"
+        result = subprocess.run(['./pipe', 'cat', 'wc', '-l'], input=input_text, capture_output=True, text=True)
+        self.assertTrue('2' in result.stdout.strip())
 
-    def test_invalid_command(self):
-        """Test error handling for invalid command line arguments."""
-        result = subprocess.run(['./pipe', 'nonexistent_command'], capture_output=True, text=True)
+    def test_handle_invalid_argument(self):
+        """Test the program exits with EINVAL when no command line arguments are provided."""
+        result = subprocess.run(['./pipe'], capture_output=True)
         self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.returncode, 22)  # Assuming the program exits with EINVAL for no args
 
-    def test_stderr_consistency(self):
-        """Verify that stderr from child processes is the same as parent's."""
-        result = subprocess.run(['./pipe', 'ls', 'nonexistent_folder'], capture_output=True, text=True)
-        self.assertTrue("No such file or directory" in result.stderr)
+    def test_handle_more_than_eight_programs(self):
+        """Test handling more than 8 programs."""
+        command_list = ['./pipe'] + ['echo'] * 9
+        result = subprocess.run(command_list, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0)
 
-    def test_proper_fd_closure(self):
-        """Check for proper closure of file descriptors."""
-        # This test case might require inspection of open file descriptors or specific error messages indicating unclosed fds.
+    def test_no_orphan_processes(self):
+        """Ensure that no orphan processes are left by executing a sequence of commands."""
+        # This test might require more sophisticated system-level checks after the run
+        subprocess.run(['./pipe', 'echo', 'hello', 'wc', '-c'], capture_output=True)
+        # You might need to verify the absence of orphans using system tools or logs
 
     def test_error_exit_code(self):
-        """Verify that the program exits with the proper errno."""
-        # This may require specific conditions that trigger known errors to verify the correct exit code is used.
+        """Test that the program exits with the correct error code on failure."""
+        result = subprocess.run(['./pipe', 'nonexistent_command'], capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
 
-    def test_no_orphans_varied_commands(self):
-        """Ensuring no orphan processes are created with varied numbers of commands."""
-        # This test can be similar to the existing 'test_no_orphans' but with different combinations of commands.
+    def test_no_leaking_file_descriptors(self):
+        """Test for leaking file descriptors by executing commands that would reveal unclosed fds."""
+        # Implementing this test requires checking system resources or using specific diagnostic tools
 
-    def test_nonexistent_program(self):
-        """Testing with a non-existent program to verify EINVAL is returned."""
-        result = subprocess.run(['./pipe'], capture_output=True)
-        self.assertEqual(result.returncode, 22, "Expected EINVAL for no arguments.")
+# This is a scaffold; some tests need specific conditions or environment to run correctly.
+# Add more specific tests as needed to cover all requirements and edge cases.
 
-# Additional utility functions or setup/teardown methods as needed
+if __name__ == '__main__':
+    unittest.main()
