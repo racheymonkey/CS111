@@ -1,3 +1,27 @@
+import pathlib
+import re
+import subprocess
+import unittest
+
+class TestLab1(unittest.TestCase):
+
+    def _make():
+        result = subprocess.run(['make'], capture_output=True, text=True)
+        return result
+
+    def _make_clean():
+        result = subprocess.run(['make', 'clean'],
+                                capture_output=True, text=True)
+        return result
+
+    @classmethod
+    def setUpClass(cls):
+        cls.make = cls._make().returncode == 0
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._make_clean()
+
 def test_complex_scenario(self):
     self.assertTrue(self.make, msg='make failed')
 
