@@ -7,72 +7,80 @@
 
 int main(int argc, char *argv[])
 {
-    int prev = STDIN_FILENO;
+    int prev = STDIN_FILENO; // previous file descriptor for reading
     int fds[2];
 
-    // not enough args
+    // check for at least one command argument
     if (argc <= 1) {
-        exit(EINVAL);
+        exit(EINVAL); // exit if no command arguments
     }
 
     for (int i = 1; i < argc; i++) {
-        if (i < argc - 1) { // Only create a pipe if there are more commands to execute
+        // create pipe if more commands to execute
+        if (i < argc - 1) { 
             if (pipe(fds) != 0) {
-                exit(1); // Exit if pipe creation fails
+                exit(1); // exit if pipe creation fails
             }
         }
 
-        pid_t pid = fork();
+        pid_t pid = fork(); // create a new process
 
-        // fork failure
+        // check for fork failure
         if (pid == -1) { 
-            exit(1); // Exit if fork fails
+            exit(1); // exit if fork fails
         } 
-
-        // fork success, in child process
+        // child process
         else if (pid == 0) {
-            // Redirect input from previous pipe, if not first command
+            // redirect stdin from previous pipe if not first command
             dup2(prev, STDIN_FILENO);
+            // close previous read end if not stdin
             if (prev != STDIN_FILENO) {
                 close(prev);
             }
 
-            // For all but the last command, redirect output to the pipe
+            // redirect stdout to the pipe if not last command
             if (i != argc - 1) {
                 dup2(fds[1], STDOUT_FILENO);
+                // close read end of the pipe in child
                 close(fds[0]);
             }
 
-            // Close all fds in child to ensure clean execution environment
+            // close write end of pipe if not last command
             if (i < argc - 1) {
                 close(fds[1]);
             }
 
-            execlp(argv[i], argv[i], NULL); // Execute command
-            exit(1); // Exit with failure if command does not execute
+            // execute command
+            execlp(argv[i], argv[i], NULL); 
+            // exit with failure if execlp fails
+            exit(1); 
         } 
-
-        // In parent process
+        // parent process
         else {
+            // close previous read end if not stdin
             if (prev != STDIN_FILENO) {
-                close(prev); // Close previous read end
+                close(prev); 
             }
+            // setup for next command if more commands to execute
             if (i < argc - 1) {
-                close(fds[1]); // Close write end not needed in parent
-                prev = fds[0]; // Next command reads from here
+                close(fds[1]); // close write end of pipe in parent
+                prev = fds[0]; // prepare next read end for subsequent command
             }
 
             int st = 0;
-            waitpid(pid, &st, 0); // Wait for child to complete
+            // wait for child process to complete
+            waitpid(pid, &st, 0); 
+            // exit if child did not exit cleanly
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                exit(1); // Exit immediately with the child's exit status
+                exit(1); 
             }
         }
     }
 
+    // close last used read end if any
     if (argc >= 2 && prev != STDIN_FILENO) {
-        close(prev); // Prevent leak
+        close(prev); 
     }
 
-    return 0; // Success
+    return 0; // success
 }
