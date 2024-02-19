@@ -12,17 +12,17 @@
 typedef uint32_t u32;
 typedef int32_t i32;
 
-struct process
-{
+struct process {
   u32 pid;
   u32 arrival_time;
   u32 burst_time;
-
+  bool has_been_executed;
+  u32 first_execution_time;
+  u32 total_waiting_time;
+  u32 last_added_time; // Time when the process was last added to the queue.
   TAILQ_ENTRY(process) pointers;
-
-  /* Additional fields here */
-  /* End of "Additional fields here" */
 };
+
 
 TAILQ_HEAD(process_list, process);
 
@@ -92,6 +92,11 @@ void init_processes(const char *path,
                     struct process **process_data,
                     u32 *process_size)
 {
+  // Inside init_processes, after loading each process:
+  (*process_data)[i].has_been_executed = false;
+  (*process_data)[i].first_execution_time = 0; // Will be set upon first execution.
+  (*process_data)[i].total_waiting_time = 0; // Initialize waiting time.
+  
   int fd = open(path, O_RDONLY);
   if (fd == -1)
   {
@@ -158,60 +163,63 @@ int main(int argc, char *argv[])
 
   u32 total_waiting_time = 0;
   u32 total_response_time = 0;
-
-/* Your code here */
-
-struct process_list ready_queue;
-TAILQ_INIT(&ready_queue);
-
-u32 current_time = 0, completed_processes = 0;
-u32 process_index = 0;
-u32 remaining_burst_time[size]; // Track remaining burst times for each process.
-for (u32 i = 0; i < size; i++) {
-    remaining_burst_time[i] = data[i].burst_time; // Initialize with burst times.
-}
-
-bool first_response[size]; // Track if first response time has been recorded for each process.
-memset(first_response, 0, sizeof(first_response));
-
-while (completed_processes < size) {
-    // Add processes to the ready queue as they arrive
-    while (process_index < size && data[process_index].arrival_time <= current_time) {
-        TAILQ_INSERT_TAIL(&ready_queue, &data[process_index], pointers);
-        process_index++;
-    }
-
-    if (!TAILQ_EMPTY(&ready_queue)) {
-        struct process *proc = TAILQ_FIRST(&ready_queue);
-
-        // Calculate waiting time if this is the first time the process is getting CPU after its arrival
-        if (!first_response[proc->pid]) {
-            total_waiting_time += current_time - proc->arrival_time;
-            total_response_time += current_time - proc->arrival_time;
-            first_response[proc->pid] = true;
-        }
-
-        // Execute the process for a quantum or its remaining burst time, whichever is smaller
-        u32 execution_time = remaining_burst_time[proc->pid] < quantum_length ? remaining_burst_time[proc->pid] : quantum_length;
-        remaining_burst_time[proc->pid] -= execution_time;
-        current_time += execution_time;
-
-        if (remaining_burst_time[proc->pid] == 0) {
-            // Process completed
-            TAILQ_REMOVE(&ready_queue, proc, pointers);
-            completed_processes++;
-        } else {
-            // Not completed, move to the end of the queue
-            TAILQ_REMOVE(&ready_queue, proc, pointers);
-            TAILQ_INSERT_TAIL(&ready_queue, proc, pointers);
-        }
-    } else {
-        // No process is ready; increment current time
-        current_time++;
-    }
-}
-
-/* End of "Your code here" */
+  
+  u32 current_time = 0;
+  u32 completed_processes = 0;
+  // Assuming `remaining_burst_time` and other arrays are properly initialized.
+  
+  while (completed_processes < size) {
+      // Add arriving processes to the ready queue...
+      for (u32 i = 0; i < size; i++) {
+          if (!data[i].has_been_executed && data[i].arrival_time <= current_time) {
+              TAILQ_INSERT_TAIL(&ready_queue, &data[i], pointers);
+              data[i].last_added_time = current_time; // Mark when it was added to the queue.
+          }
+      }
+  
+      if (!TAILQ_EMPTY(&ready_queue)) {
+          struct process *proc = TAILQ_FIRST(&ready_queue);
+  
+          if (!proc->has_been_executed) {
+              proc->first_execution_time = current_time;
+              proc->has_been_executed = true;
+          }
+  
+          // Calculate waiting time before execution.
+          if (proc->has_been_executed) {
+              proc->total_waiting_time += current_time - proc->last_added_time;
+          }
+  
+          // Determine execution time (quantum or remaining burst, whichever is smaller)
+          u32 execution_time = quantum_length < proc->burst_time ? quantum_length : proc->burst_time;
+          proc->burst_time -= execution_time;
+          current_time += execution_time; // Advance time by the execution time.
+  
+          if (proc->burst_time == 0) {
+              // Process completed.
+              TAILQ_REMOVE(&ready_queue, proc, pointers);
+              completed_processes++;
+          } else {
+              // Process not completed, needs to be added back to the queue.
+              proc->last_added_time = current_time; // Update last added time.
+              TAILQ_REMOVE(&ready_queue, proc, pointers);
+              TAILQ_INSERT_TAIL(&ready_queue, proc, pointers);
+          }
+      } else {
+          // If no process is ready, increment the current time.
+          current_time++;
+      }
+  }
+  
+  // Calculate the total waiting and response times.
+  for (u32 i = 0; i < size; i++) {
+      total_waiting_time += data[i].total_waiting_time;
+      total_response_time += data[i].first_execution_time - data[i].arrival_time;
+  }
+  
+  // Calculate average waiting and response times.
+  float avg_waiting_time = (float)total_waiting_time / (float)size;
+  float avg_response_time = (float)total_response_time / (float)size;
 
   printf("Average waiting time: %.2f\n", (float)total_waiting_time / (float)size);
   printf("Average response time: %.2f\n", (float)total_response_time / (float)size);
