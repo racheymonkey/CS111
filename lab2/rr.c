@@ -92,10 +92,6 @@ void init_processes(const char *path,
                     struct process **process_data,
                     u32 *process_size)
 {
-  // Inside init_processes, after loading each process:
-  (*process_data)[i].has_been_executed = false;
-  (*process_data)[i].first_execution_time = 0; // Will be set upon first execution.
-  (*process_data)[i].total_waiting_time = 0; // Initialize waiting time.
   
   int fd = open(path, O_RDONLY);
   if (fd == -1)
@@ -134,12 +130,17 @@ void init_processes(const char *path,
     perror("calloc");
     exit(err);
   }
-
-  for (u32 i = 0; i < *process_size; ++i)
-  {
+  
+  for (u32 i = 0; i < *process_size; ++i) {
     (*process_data)[i].pid = next_int(&data, data_end);
     (*process_data)[i].arrival_time = next_int(&data, data_end);
     (*process_data)[i].burst_time = next_int(&data, data_end);
+    
+    // Correct placement of new fields initialization
+    (*process_data)[i].has_been_executed = false;
+    (*process_data)[i].first_execution_time = 0; // Will be set upon first execution.
+    (*process_data)[i].total_waiting_time = 0; // Initialize waiting time.
+    (*process_data)[i].last_added_time = (*process_data)[i].arrival_time; // Initialize with arrival time.
   }
 
   munmap((void *)data, size);
@@ -158,8 +159,8 @@ int main(int argc, char *argv[])
 
   u32 quantum_length = next_int_from_c_str(argv[2]);
 
-  struct process_list list;
-  TAILQ_INIT(&list);
+  struct process_list ready_queue;
+  TAILQ_INIT(&ready_queue);
 
   u32 total_waiting_time = 0;
   u32 total_response_time = 0;
@@ -221,9 +222,9 @@ int main(int argc, char *argv[])
   float avg_waiting_time = (float)total_waiting_time / (float)size;
   float avg_response_time = (float)total_response_time / (float)size;
 
-  printf("Average waiting time: %.2f\n", (float)total_waiting_time / (float)size);
-  printf("Average response time: %.2f\n", (float)total_response_time / (float)size);
-
+  printf("Average waiting time: %.2f\n", avg_waiting_time);
+  printf("Average response time: %.2f\n", avg_response_time);
+  
   free(data);
   return 0;
 }
