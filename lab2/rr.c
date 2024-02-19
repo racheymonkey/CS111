@@ -21,9 +21,6 @@ struct process
   TAILQ_ENTRY(process) pointers;
 
   /* Additional fields here */
-  u32 remaining_burst_time; // Time left for the process to complete.
-  bool has_started; // Flag to check if the process has started executing.
-  u32 start_time; // Time at which process starts first time.
   /* End of "Additional fields here" */
 };
 
@@ -162,72 +159,62 @@ int main(int argc, char *argv[])
   u32 total_waiting_time = 0;
   u32 total_response_time = 0;
 
-  /* Your code here */
-    
-    /* Additional variables for tracking execution */
-    u32 current_time = 0;
-    bool cpu_idle = true;
-    u32 processes_completed = 0;
-    u32 total_turnaround_time = 0; // For calculating turnaround time as well.
+/* Your code here */
 
-    /* Initialize each process's remaining burst time and has_started flag */
-    for (u32 i = 0; i < size; ++i) {
-        data[i].remaining_burst_time = data[i].burst_time;
-        data[i].has_started = false;
+struct process_list ready_queue;
+TAILQ_INIT(&ready_queue);
+
+u32 current_time = 0, completed_processes = 0;
+u32 process_index = 0;
+u32 remaining_burst_time[size]; // Track remaining burst times for each process.
+for (u32 i = 0; i < size; i++) {
+    remaining_burst_time[i] = data[i].burst_time; // Initialize with burst times.
+}
+
+bool first_response[size]; // Track if first response time has been recorded for each process.
+memset(first_response, 0, sizeof(first_response));
+
+while (completed_processes < size) {
+    // Add processes to the ready queue as they arrive
+    while (process_index < size && data[process_index].arrival_time <= current_time) {
+        TAILQ_INSERT_TAIL(&ready_queue, &data[process_index], pointers);
+        process_index++;
     }
 
-    /* Main scheduling loop */
-    while (processes_completed < size) {
-        struct process *proc = NULL;
-        bool found_process = false;
+    if (!TAILQ_EMPTY(&ready_queue)) {
+        struct process *proc = TAILQ_FIRST(&ready_queue);
 
-        /* Find the next process to run based on arrival time and remaining burst time */
-        TAILQ_FOREACH(proc, &list, pointers) {
-            if (proc->arrival_time <= current_time && proc->remaining_burst_time > 0) {
-                found_process = true;
-                break;
-            }
+        // Calculate waiting time if this is the first time the process is getting CPU after its arrival
+        if (!first_response[proc->pid]) {
+            total_waiting_time += current_time - proc->arrival_time;
+            total_response_time += current_time - proc->arrival_time;
+            first_response[proc->pid] = true;
         }
 
-        if (found_process) {
-            /* Process is starting for the first time */
-            if (!proc->has_started) {
-                proc->has_started = true;
-                proc->start_time = current_time;
-                total_response_time += current_time - proc->arrival_time;
-            }
+        // Execute the process for a quantum or its remaining burst time, whichever is smaller
+        u32 execution_time = remaining_burst_time[proc->pid] < quantum_length ? remaining_burst_time[proc->pid] : quantum_length;
+        remaining_burst_time[proc->pid] -= execution_time;
+        current_time += execution_time;
 
-            /* Execute the process for a quantum or its remaining time */
-            u32 execution_time = (proc->remaining_burst_time < quantum_length) ? proc->remaining_burst_time : quantum_length;
-            current_time += execution_time;
-            proc->remaining_burst_time -= execution_time;
-
-            /* Update waiting time for other processes */
-            struct process *temp;
-            TAILQ_FOREACH(temp, &list, pointers) {
-                if (temp != proc && temp->arrival_time < current_time && temp->remaining_burst_time > 0) {
-                    total_waiting_time += execution_time;
-                }
-            }
-
-            /* Check if process is completed */
-            if (proc->remaining_burst_time == 0) {
-                processes_completed++;
-                total_turnaround_time += current_time - proc->arrival_time;
-            }
-
-            cpu_idle = false;
+        if (remaining_burst_time[proc->pid] == 0) {
+            // Process completed
+            TAILQ_REMOVE(&ready_queue, proc, pointers);
+            completed_processes++;
         } else {
-            current_time++; // Increment time if no process was ready to execute.
-            cpu_idle = true;
+            // Not completed, move to the end of the queue
+            TAILQ_REMOVE(&ready_queue, proc, pointers);
+            TAILQ_INSERT_TAIL(&ready_queue, proc, pointers);
         }
+    } else {
+        // No process is ready; increment current time
+        current_time++;
     }
-    
-  /* End of "Your code here" */
+}
+
+/* End of "Your code here" */
 
   printf("Average waiting time: %.2f\n", (float)total_waiting_time / (float)size);
   printf("Average response time: %.2f\n", (float)total_response_time / (float)size);
-  printf("Average turnaround time: %.2f\n", (float)total_turnaround_time / (float)size);
 
   free(data);
   return 0;
