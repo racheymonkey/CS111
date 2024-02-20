@@ -176,33 +176,31 @@ for (u32 i = 0; i < size; ++i) {
 struct process *current_proc = NULL; // Pointer to the currently executing process
 
 while (!all_done) {
-  bool idle = true;
-  
-  // Enqueue processes that have arrived
-  for (u32 i = 0; i < size; ++i) {
-    if (data[i].arrival_time <= current_time && !data[i].in_queue && data[i].remaining_time > 0) {
-      TAILQ_INSERT_TAIL(&list, &data[i], pointers);
-      data[i].in_queue = true; // Mark the process as in the queue
-      idle = false;
+  /* Inside the while loop */
+if (current_proc != NULL) {
+  idle = false;
+  u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
+  current_proc->remaining_time -= exec_time;
+  current_time += exec_time;
+
+  // Correctly update waiting time for all processes in the queue
+  struct process *tmp = TAILQ_FIRST(&list); // Start from the head of the list
+  while (tmp != NULL) {
+    if (tmp != current_proc) {
+      total_waiting_time += exec_time; // Only increment waiting time for processes not currently executing
     }
+    tmp = TAILQ_NEXT(tmp, pointers); // Move to the next process in the list
   }
 
-  if (current_proc == NULL || current_proc->remaining_time == 0) {
-    if (current_proc && current_proc->remaining_time == 0) {
-      // Do not forget to reset current_proc here so it picks a new process next
-      current_proc = NULL;
-    }
-
-    if (!TAILQ_EMPTY(&list)) {
-      current_proc = TAILQ_FIRST(&list);
-      TAILQ_REMOVE(&list, current_proc, pointers); // Remove from queue
-      current_proc->in_queue = false; // Mark as not in the queue
-
-      if (!current_proc->responded) {
-        current_proc->responded = true;
-        total_response_time += current_time - current_proc->arrival_time;
-      }
-    }
+  // If the process has finished, don't put it back in the queue
+  if (current_proc->remaining_time > 0) {
+    TAILQ_INSERT_TAIL(&list, current_proc, pointers); // Re-insert the process at the end of the list if not done
+    current_proc->in_queue = true;
+  } else {
+    // If finished, don't set current_proc to NULL immediately, wait until next cycle
+    // This allows the scheduler to check for new arrivals before picking the next process
+  }
+}
   }
 
   if (current_proc != NULL) {
