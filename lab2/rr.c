@@ -188,6 +188,17 @@ int main(int argc, char *argv[])
       }
     }
 
+    // If there are no processes in the queue and there are more processes to arrive
+    if (TAILQ_EMPTY(&list) && !all_done) {
+        // Advance simulation time to the arrival time of the next process
+        current_time = UINT32_MAX; // Set to maximum possible value initially
+        for (u32 i = 0; i < size; ++i) {
+            if (data[i].arrival_time > current_time && data[i].remaining_time > 0) {
+                current_time = data[i].arrival_time;
+            }
+        }
+    }
+
     // if current time slice is over or the current process is done
     if (time_slice == 0 || (current_proc != NULL && current_proc->remaining_time == 0)) {
       // if there is a current process and it still has time left
