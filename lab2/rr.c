@@ -163,6 +163,8 @@ int main(int argc, char *argv[])
   u32 total_response_time = 0;
 
   /* Your code here */
+  u32 current_time = 0;
+  bool all_done = false;
 
 /* Inside main function, after initializing the processes */
 for (u32 i = 0; i < size; ++i) {
