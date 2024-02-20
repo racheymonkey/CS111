@@ -176,7 +176,35 @@ for (u32 i = 0; i < size; ++i) {
 struct process *current_proc = NULL; // Pointer to the currently executing process
 
 while (!all_done) {
-  /* Inside the while loop */
+  bool idle = true;
+  
+  // Enqueue processes that have arrived
+  for (u32 i = 0; i < size; ++i) {
+    if (data[i].arrival_time <= current_time && !data[i].in_queue && data[i].remaining_time > 0) {
+      TAILQ_INSERT_TAIL(&list, &data[i], pointers);
+      data[i].in_queue = true; // Mark the process as in the queue
+      idle = false;
+    }
+  }
+
+  if (current_proc == NULL || current_proc->remaining_time == 0) {
+    if (current_proc && current_proc->remaining_time == 0) {
+      // Do not forget to reset current_proc here so it picks a new process next
+      current_proc = NULL;
+    }
+
+    if (!TAILQ_EMPTY(&list)) {
+      current_proc = TAILQ_FIRST(&list);
+      TAILQ_REMOVE(&list, current_proc, pointers); // Remove from queue
+      current_proc->in_queue = false; // Mark as not in the queue
+
+      if (!current_proc->responded) {
+        current_proc->responded = true;
+        total_response_time += current_time - current_proc->arrival_time;
+      }
+    }
+  }
+/* Inside the while loop */
 if (current_proc != NULL) {
   idle = false;
   u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
@@ -201,27 +229,6 @@ if (current_proc != NULL) {
     // This allows the scheduler to check for new arrivals before picking the next process
   }
 }
-  }
-
-  if (current_proc != NULL) {
-    idle = false;
-    u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
-    current_proc->remaining_time -= exec_time;
-    current_time += exec_time;
-
-    // Update waiting time for all processes in queue
-    struct process *tmp;
-    TAILQ_FOREACH(tmp, &list, pointers) {
-      total_waiting_time += exec_time;
-    }
-
-    if (current_proc->remaining_time > 0) {
-      TAILQ_INSERT_TAIL(&list, current_proc, pointers);
-      current_proc->in_queue = true;
-    } else {
-      current_proc = NULL;
-    }
-  }
 
   // Check if all processes are done
   all_done = true;
