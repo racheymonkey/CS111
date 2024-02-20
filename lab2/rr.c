@@ -175,6 +175,7 @@ for (u32 i = 0; i < size; ++i) {
 
 struct process *current_proc = NULL; // Pointer to the currently executing process
 
+// Inside the while loop
 while (!all_done) {
   bool idle = true;
   
@@ -187,59 +188,40 @@ while (!all_done) {
     }
   }
 
-  if (current_proc == NULL || current_proc->remaining_time == 0) {
-    if (current_proc && current_proc->remaining_time == 0) {
-      // Do not forget to reset current_proc here so it picks a new process next
-      current_proc = NULL;
-    }
+  // Select the next process to execute if there is no current process
+  if (current_proc == NULL && !TAILQ_EMPTY(&list)) {
+    current_proc = TAILQ_FIRST(&list);
+    TAILQ_REMOVE(&list, current_proc, pointers); // Remove from queue
+    current_proc->in_queue = false; // Mark as not in the queue
 
-    if (!TAILQ_EMPTY(&list)) {
-      current_proc = TAILQ_FIRST(&list);
-      TAILQ_REMOVE(&list, current_proc, pointers); // Remove from queue
-      current_proc->in_queue = false; // Mark as not in the queue
-
-      if (!current_proc->responded) {
-        current_proc->responded = true;
-        total_response_time += current_time - current_proc->arrival_time;
-      }
+    if (!current_proc->responded) {
+      current_proc->responded = true;
+      total_response_time += current_time - current_proc->arrival_time;
     }
   }
-// ...
-// Inside the while loop
-if (current_proc != NULL) {
-  idle = false;
-  // Determine the execution time for the current process
-  u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
-  current_proc->remaining_time -= exec_time; // Reduce the remaining time by exec_time
-  current_time += exec_time; // Move the system clock forward by exec_time
-  
-  // Calculate the waiting time for other processes in the queue
-  struct process *tmp;
-  TAILQ_FOREACH(tmp, &list, pointers) {
-    if (tmp != current_proc) { // Do not increment waiting time for the current process
+
+  // Execute the current process
+  if (current_proc != NULL) {
+    idle = false;
+    u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
+    current_proc->remaining_time -= exec_time;
+    current_time += exec_time;
+
+    // Update waiting time for other processes in the queue
+    struct process *tmp;
+    TAILQ_FOREACH(tmp, &list, pointers) {
       total_waiting_time += exec_time;
     }
+
+    // Re-queue the process if it has remaining time
+    if (current_proc->remaining_time > 0) {
+      TAILQ_INSERT_TAIL(&list, current_proc, pointers);
+      current_proc->in_queue = true;
+    }
+
+    // Reset current_proc to allow the next process to be scheduled
+    current_proc = NULL;
   }
-  
-  // Re-queue the process if it has remaining time
-  if (current_proc->remaining_time > 0) {
-    TAILQ_INSERT_TAIL(&list, current_proc, pointers); // Re-insert the process at the end of the list if not done
-    current_proc->in_queue = true;
-  } else {
-    // Mark the process as no longer in queue and reset the current_proc pointer
-    current_proc->in_queue = false;
-    current_proc = NULL; // Set to NULL so a new process can be picked
-  }
-} else if (!TAILQ_EMPTY(&list)) {
-  // If there is no current process running and the queue is not empty, pick the next process
-  current_proc = TAILQ_FIRST(&list);
-  TAILQ_REMOVE(&list, current_proc, pointers);
-  current_proc->in_queue = false;
-  if (!current_proc->responded) {
-    current_proc->responded = true;
-    total_response_time += current_time - current_proc->arrival_time;
-  }
-}
 
   // Check if all processes are done
   all_done = true;
