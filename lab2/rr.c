@@ -1,358 +1,243 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
-#include <stdckdint.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
 #include <sys/queue.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-/* A process table entry.  */
-struct process {
-  long pid;
-  long arrival_time;
-  long burst_time;
+typedef uint32_t u32;
+typedef int32_t i32;
 
-  TAILQ_ENTRY (process) pointers;
+struct process
+{
+  u32 pid;
+  u32 arrival_time;
+  u32 burst_time;
+
+  TAILQ_ENTRY(process) pointers;
 
   /* Additional fields here */
-  bool running;
-  long waiting_time;
-  long start_exec_time;
-  long remaining_time;
-  long response_time;
-  long end_time;
+  u32 remaining_time; // For tracking remaining burst time
+  bool responded;     // For tracking if the process has been responded to
   /* End of "Additional fields here" */
 };
 
-TAILQ_HEAD (process_list, process);
+TAILQ_HEAD(process_list, process);
 
-/* Skip past initial nondigits in *DATA, then scan an unsigned decimal
-   integer and return its value.  Do not scan past DATA_END.  Return
-   the integer’s value.  Report an error and exit if no integer is
-   found, or if the integer overflows.  */
-static long next_int (char const **data, char const *data_end) {
-  long current = 0;
-  bool int_start = false;
-  char const *d;
+u32 next_int(const char **data, const char *data_end)
+{
+  u32 current = 0;
+  bool started = false;
+  while (*data != data_end)
+  {
+    char c = **data;
 
-  for (d = *data; d < data_end; d++) {
-      char c = *d;
-      if ('0' <= c && c <= '9') {
-        int_start = true;
-        if (ckd_mul (&current, current, 10) || ckd_add (&current, current, c - '0')) {
-          fprintf (stderr, "integer overflow\n");
-          exit (1);
-        }
-	    } else if (int_start)
-	      break;
+    if (c < 0x30 || c > 0x39)
+    {
+      if (started)
+      {
+        return current;
+      }
+    }
+    else
+    {
+      if (!started)
+      {
+        current = (c - 0x30);
+        started = true;
+      }
+      else
+      {
+        current *= 10;
+        current += (c - 0x30);
+      }
+    }
+
+    ++(*data);
   }
 
-  if (!int_start) {
-    fprintf (stderr, "missing integer\n");
-    exit (1);
-  }
+  printf("Reached end of file while looking for another integer\n");
+  exit(EINVAL);
+}
 
-  *data = d;
+u32 next_int_from_c_str(const char *data)
+{
+  char c;
+  u32 i = 0;
+  u32 current = 0;
+  bool started = false;
+  while ((c = data[i++]))
+  {
+    if (c < 0x30 || c > 0x39)
+    {
+      exit(EINVAL);
+    }
+    if (!started)
+    {
+      current = (c - 0x30);
+      started = true;
+    }
+    else
+    {
+      current *= 10;
+      current += (c - 0x30);
+    }
+  }
   return current;
 }
 
-/* Return the first unsigned decimal integer scanned from DATA.
-   Report an error and exit if no integer is found, or if it overflows.  */
-static long next_int_from_c_str (char const *data) {
-  return next_int (&data, strchr (data, 0));
-}
-
-/* A vector of processes of length NPROCESSES; the vector consists of
-   PROCESS[0], ..., PROCESS[NPROCESSES - 1].  */
-struct process_set {
-  long nprocesses;
-  struct process *process;
-};
-
-/* Return a vector of processes scanned from the file named FILENAME.
-   Report an error and exit on failure.  */
-static struct process_set init_processes (char const *filename) {
-  int fd = open (filename, O_RDONLY);
-  if (fd < 0) {
-    perror ("open");
-    exit (1);
+void init_processes(const char *path,
+                    struct process **process_data,
+                    u32 *process_size)
+{
+  int fd = open(path, O_RDONLY);
+  if (fd == -1)
+  {
+    int err = errno;
+    perror("open");
+    exit(err);
   }
 
   struct stat st;
-  if (fstat (fd, &st) < 0) {
-    perror ("stat");
-    exit (1);
+  if (fstat(fd, &st) == -1)
+  {
+    int err = errno;
+    perror("stat");
+    exit(err);
   }
 
-  size_t size;
-  if (ckd_add (&size, st.st_size, 0)) {
-    fprintf (stderr, "%s: file size out of range\n", filename);
-    exit (1);
+  u32 size = st.st_size;
+  const char *data_start = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+  if (data_start == MAP_FAILED)
+  {
+    int err = errno;
+    perror("mmap");
+    exit(err);
   }
 
-  char *data_start = mmap (NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
-  if (data_start == MAP_FAILED) {
-    perror ("mmap");
-    exit (1);
+  const char *data_end = data_start + size;
+  const char *data = data_start;
+
+  *process_size = next_int(&data, data_end);
+
+  *process_data = calloc(sizeof(struct process), *process_size);
+  if (*process_data == NULL)
+  {
+    int err = errno;
+    perror("calloc");
+    exit(err);
   }
 
-  char const *data_end = data_start + size;
-  char const *data = data_start;
-
-  long nprocesses = next_int (&data, data_end);
-  if (nprocesses <= 0) {
-    fprintf (stderr, "no processes\n");
-    exit (1);
+  for (u32 i = 0; i < *process_size; ++i)
+  {
+    (*process_data)[i].pid = next_int(&data, data_end);
+    (*process_data)[i].arrival_time = next_int(&data, data_end);
+    (*process_data)[i].burst_time = next_int(&data, data_end);
   }
 
-  struct process *process = calloc (sizeof *process, nprocesses);
-  if (!process) {
-    perror ("calloc");
-    exit (1);
-  }
-
-  for (long i = 0; i < nprocesses; i++) {
-    process[i].pid = next_int (&data, data_end);
-    process[i].arrival_time = next_int (&data, data_end);
-    process[i].burst_time = next_int (&data, data_end);
-    if (process[i].burst_time == 0) {
-	    fprintf (stderr, "process %ld has zero burst time\n", process[i].pid);
-	    exit (1);
-	  }
-  }
-
-  if (munmap (data_start, size) < 0) {
-    perror ("munmap");
-    exit (1);
-  }
-
-  if (close (fd) < 0) {
-    perror ("close");
-    exit (1);
-  }
-
-  return (struct process_set) {nprocesses, process};
+  munmap((void *)data, size);
+  close(fd);
 }
 
-struct IndexedLong {
-    long value;
-    long index;
-};
-
-// Comparison function for qsort
-int compareIndexedLongs(const void *a, const void *b) {
-    const struct IndexedLong *indexedA = (const struct IndexedLong *)a;
-    const struct IndexedLong *indexedB = (const struct IndexedLong *)b;
-
-    if (indexedA->value < indexedB->value) 
-      return -1;
-    if (indexedA->value > indexedB->value) 
-      return 1;
-    return indexedA->index - indexedB->index;  // Ensure stability by comparing original indices
-}
-
-int main (int argc, char *argv[]) {
-  if (argc != 3) {
-    fprintf (stderr, "%s: usage: %s file quantum\n", argv[0], argv[0]);
-    return 1;
+int main(int argc, char *argv[])
+{
+  if (argc != 3)
+  {
+    return EINVAL;
   }
+  struct process *data;
+  u32 size;
+  init_processes(argv[1], &data, &size);
 
-  struct process_set ps = init_processes (argv[1]);
-  long quantum_length = (strcmp (argv[2], "median") == 0 ? -1 : next_int_from_c_str (argv[2]));
-  if (quantum_length == 0) {
-    fprintf (stderr, "%s: zero quantum length\n", argv[0]);
-    return 1;
-  }
+  u32 quantum_length = next_int_from_c_str(argv[2]);
 
   struct process_list list;
-  TAILQ_INIT (&list);
+  TAILQ_INIT(&list);
 
-  long total_wait_time = 0;
-  long total_response_time = 0;
+  u32 total_waiting_time = 0;
+  u32 total_response_time = 0;
 
   /* Your code here */
-  long time = 0;
-  // bool done = true;
-  struct process *p;
-  struct process *curr;
-  long quantum_count = 0;
-  long curr_proc_count = 0;
-  long num_changes = 0;
+	
+  // Initialize current time and a boolean to track if all processes are done
+u32 current_time = 0;
+bool all_done = false;
 
-  bool fixed_quantum_length = true;
-  if (strcmp (argv[2], "median") == 0) {
-    fixed_quantum_length = false;
+// Initialize each process's remaining time and responded flag
+for (u32 i = 0; i < size; ++i) {
+  data[i].remaining_time = data[i].burst_time;
+  data[i].responded = false;
+}
+
+while (!all_done) {
+  bool idle = true;
+
+  // Enqueue processes that have arrived
+  for (u32 i = 0; i < size; ++i) {
+    if (data[i].arrival_time <= current_time && data[i].remaining_time > 0) {
+      TAILQ_INSERT_TAIL(&list, &data[i], pointers);
+      data[i].arrival_time = UINT32_MAX; // Prevent re-adding
+      idle = false;
+    }
   }
 
-  bool context_switch = false;
+  if (!TAILQ_EMPTY(&list)) {
+    struct process *proc = TAILQ_FIRST(&list);
 
-  // initialize queue with first arriver(s)
-  while (TAILQ_EMPTY(&list)) {
-    for (long i = 0; i < ps.nprocesses; i++) {
-      p = &ps.process[i];
-      if (p->arrival_time == time) {
-        p->remaining_time = p->burst_time;
-        p->waiting_time = 0;
-        p->running = false;
-        curr_proc_count++;
-        TAILQ_INSERT_TAIL(&list, &ps.process[i], pointers);
-        
+    // Calculate response time if first time running
+    if (!proc->responded) {
+      proc->responded = true;
+      total_response_time += current_time - proc->arrival_time;
+    }
+
+    // Execute the process for a quantum or its remaining time
+    u32 exec_time = (proc->remaining_time < quantum_length) ? proc->remaining_time : quantum_length;
+    proc->remaining_time -= exec_time;
+    current_time += exec_time;
+    idle = false;
+
+    // Update waiting time for other processes
+    struct process *tmp;
+    TAILQ_FOREACH(tmp, &list, pointers) {
+      if (tmp != proc) {
+        total_waiting_time += exec_time;
       }
     }
-    time++;
+
+    // If process is done, remove it from the queue
+    if (proc->remaining_time == 0) {
+      TAILQ_REMOVE(&list, proc, pointers);
+    } else {
+      // Otherwise, move it to the end of the queue
+      TAILQ_REMOVE(&list, proc, pointers);
+      TAILQ_INSERT_TAIL(&list, proc, pointers);
+    }
   }
 
-  // iterate through rest of processes
-  while (num_changes != ps.nprocesses) {
-    
-    curr = TAILQ_FIRST(&list);
-    
-    if (TAILQ_EMPTY(&list)) {
-      for (long i = 0; i < ps.nprocesses; i++) {
-        p = &ps.process[i];
-        if (p->arrival_time == time) {
-          p->remaining_time = p->burst_time;
-          p->waiting_time = 0;
-          p->running = false;
-          curr_proc_count++;
-          TAILQ_INSERT_TAIL(&list, &ps.process[i], pointers);
-        }
-      }
-      time++; 
-      quantum_count = 0;
-      continue;
+  // Check if all processes are done
+  all_done = true;
+  for (u32 i = 0; i < size; ++i) {
+    if (data[i].remaining_time > 0) {
+      all_done = false;
+      break;
     }
-
-    if (context_switch) {
-      for (long i = 0; i < ps.nprocesses; i++) {
-        p = &ps.process[i];
-        if (p->arrival_time == time) {
-          p->remaining_time = p->burst_time;
-          p->waiting_time = 0;
-          p->running = false;
-          curr_proc_count++;
-          TAILQ_INSERT_TAIL(&list, &ps.process[i], pointers);
-        }
-      }
-      context_switch = false;
-      time++;
-      quantum_count = 0;
-      continue;
-    }
-
-    // calculate quantum length if necessary
-    long median;
-    if (quantum_length == -1) {
-      long arr[curr_proc_count];
-      struct process* temp;
-      int i = 0;
-      TAILQ_FOREACH(temp, &list, pointers) {
-        arr[i] = temp->burst_time - temp->remaining_time;
-        i++;
-      }
-      int n = sizeof(arr) / sizeof(arr[0]);
-
-      struct IndexedLong indexedArr[n];
-      for (long i = 0; i < n; i++) {
-        indexedArr[i].value = arr[i];
-        indexedArr[i].index = i;
-      }
-
-      qsort(indexedArr, n, sizeof(struct IndexedLong), compareIndexedLongs);
-
-      if (n % 2 == 0) {
-        long mid1 = indexedArr[n / 2 - 1].value;
-        long mid2 = indexedArr[n / 2].value;
-        median = (mid1 + mid2) / 2;
-        if ((mid1 + mid2) % 2 != 0 && median % 2 != 0)
-          median += 1;
-      } else {
-        median = indexedArr[n / 2].value;
-      }
-
-      if (median == 0)
-        median = 1;
-
-      quantum_length = median;
-    }
-
-    //running the process
-    if (curr->running == false) {
-      curr->start_exec_time = time - 1;
-      curr->running = true;
-    }
-
-    curr->remaining_time--;
-    quantum_count++;
-
-
-    // at end of quantum, re-insert process to end of queue if needed
-    if (quantum_count == quantum_length) {
-      TAILQ_REMOVE(&list, curr, pointers);
-      TAILQ_INSERT_TAIL(&list, curr, pointers);
-
-      // only context switch if there's more than one process in the queue
-      if (curr_proc_count > 1)
-        context_switch = true;
-
-      quantum_count = 0;
-
-      if (!fixed_quantum_length)
-        quantum_length = -1;
-
-    }
-  
-    //adding new process if arrival time is now
-    for (long i = 0; i < ps.nprocesses; i++) {
-      p = &ps.process[i];
-      if (p->arrival_time == time) {
-        p->remaining_time = p->burst_time;
-        p->waiting_time = 0;
-        p->running = false;
-        curr_proc_count++;
-        TAILQ_INSERT_TAIL(&list, &ps.process[i], pointers);
-      }
-    }
-
-    //if current process has run completely
-    if (curr->remaining_time == 0) {
-      curr->end_time = time;
-      quantum_count = 0;
-
-      if (!fixed_quantum_length) 
-        quantum_length = -1;
-
-      total_wait_time += (curr->end_time - curr->arrival_time - curr->burst_time);
-      total_response_time += curr->start_exec_time - curr->arrival_time;
-      num_changes++;
-      curr_proc_count--;
-      TAILQ_REMOVE(&list, curr, pointers);
-
-      // context switch if there are any processes left
-      if (curr_proc_count >= 1)
-        context_switch = true;
-
-    }
-
-    time++;
   }
+
+  // Simulate time passing if idle
+  if (idle) {
+    current_time++;
+  }
+}
 
   /* End of "Your code here" */
 
-  printf ("Average wait time: %.2f\n",
-	  total_wait_time / (double) ps.nprocesses);
-  printf ("Average response time: %.2f\n",
-	  total_response_time / (double) ps.nprocesses);
+  printf("Average waiting time: %.2f\n", (float)total_waiting_time / (float)size);
+  printf("Average response time: %.2f\n", (float)total_response_time / (float)size);
 
-  if (fflush (stdout) < 0 || ferror (stdout))
-    {
-      perror ("stdout");
-      return 1;
-    }
-
-  free (ps.process);
+  free(data);
   return 0;
 }
