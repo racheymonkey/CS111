@@ -173,186 +173,91 @@ int main (int argc, char *argv[]) {
   long total_wait_time = 0;
   long total_response_time = 0;
 
-  /* Your code here */
-  long time = 0;
-  // bool done = true;
-  struct process *p;
-  struct process *curr;
-  long quantum_count = 0;
-  long curr_proc_count = 0;
-  long num_changes = 0;
+ /* Your code here */
+long current_time = 0;  // Current time in the simulation
+struct process *current_process = NULL;  // Pointer to the currently running process
 
-  bool fixed_quantum_length = true;
-  if (strcmp (argv[2], "median") == 0) {
-    fixed_quantum_length = false;
-  }
+// Initialize each process's additional fields
+for (long i = 0; i < ps.nprocesses; i++) {
+    ps.process[i].remaining_time = ps.process[i].burst_time;
+    ps.process[i].response_time = -1; // -1 indicates response time not yet calculated
+    ps.process[i].running = false;
+    ps.process[i].waiting_time = 0;
+    ps.process[i].start_exec_time = -1;
+    ps.process[i].end_time = -1;
+}
 
-  bool context_switch = false;
-
-  // initialize queue with first arriver(s)
-  while (TAILQ_EMPTY(&list)) {
+// Main simulation loop
+while (completed_processes < ps.nprocesses) {
+    // Check for new arrivals and add them to the queue
     for (long i = 0; i < ps.nprocesses; i++) {
-      p = &ps.process[i];
-      if (p->arrival_time == time) {
-        p->remaining_time = p->burst_time;
-        p->waiting_time = 0;
-        p->running = false;
-        curr_proc_count++;
-        TAILQ_INSERT_TAIL(&list, &ps.process[i], pointers);
+        if (!ps.process[i].running && ps.process[i].arrival_time <= current_time) {
+            ps.process[i].running = true; // Mark as added to the queue
+            TAILQ_INSERT_TAIL(&list, &ps.process[i], pointers); // Add to ready queue
+        }
+    }
+
+    // If no process is currently running, get the next one from the queue
+    if (!current_process || current_process->remaining_time <= 0) {
+        if (current_process) {
+            // Process just finished, calculate its end time
+            current_process->end_time = current_time;
+            total_response_time += current_process->start_exec_time - current_process->arrival_time;
+            total_wait_time += current_process->waiting_time;
+            completed_processes++;
+        }
         
-      }
-    }
-    time++;
-  }
+        if (!TAILQ_EMPTY(&list)) {
+            // Get the next process from the head of the queue
+            current_process = TAILQ_FIRST(&list);
+            TAILQ_REMOVE(&list, current_process, pointers); // Remove from the queue
 
-  // iterate through rest of processes
-  while (num_changes != ps.nprocesses) {
-    
-    curr = TAILQ_FIRST(&list);
-    
-    if (TAILQ_EMPTY(&list)) {
-      for (long i = 0; i < ps.nprocesses; i++) {
-        p = &ps.process[i];
-        if (p->arrival_time == time) {
-          p->remaining_time = p->burst_time;
-          p->waiting_time = 0;
-          p->running = false;
-          curr_proc_count++;
-          TAILQ_INSERT_TAIL(&list, &ps.process[i], pointers);
+            // If response time not set, set it now
+            if (current_process->response_time == -1) {
+                current_process->response_time = current_time - current_process->arrival_time;
+            }
+            current_process->start_exec_time = current_time;
+        } else {
+            // No process is ready to run
+            current_process = NULL;
         }
-      }
-      time++; 
-      quantum_count = 0;
-      continue;
     }
 
-    if (context_switch) {
-      for (long i = 0; i < ps.nprocesses; i++) {
-        p = &ps.process[i];
-        if (p->arrival_time == time) {
-          p->remaining_time = p->burst_time;
-          p->waiting_time = 0;
-          p->running = false;
-          curr_proc_count++;
-          TAILQ_INSERT_TAIL(&list, &ps.process[i], pointers);
+    // Execute the current process
+    if (current_process) {
+        current_process->remaining_time--;
+        if (current_process->remaining_time <= 0) {
+            // Process finished execution
+            current_process = NULL;
         }
-      }
-      context_switch = false;
-      time++;
-      quantum_count = 0;
-      continue;
     }
 
-    // calculate quantum length if necessary
-    long median;
-    if (quantum_length == -1) {
-      long arr[curr_proc_count];
-      struct process* temp;
-      int i = 0;
-      TAILQ_FOREACH(temp, &list, pointers) {
-        arr[i] = temp->burst_time - temp->remaining_time;
-        i++;
-      }
-      int n = sizeof(arr) / sizeof(arr[0]);
-
-      struct IndexedLong indexedArr[n];
-      for (long i = 0; i < n; i++) {
-        indexedArr[i].value = arr[i];
-        indexedArr[i].index = i;
-      }
-
-      qsort(indexedArr, n, sizeof(struct IndexedLong), compareIndexedLongs);
-
-      if (n % 2 == 0) {
-        long mid1 = indexedArr[n / 2 - 1].value;
-        long mid2 = indexedArr[n / 2].value;
-        median = (mid1 + mid2) / 2;
-        if ((mid1 + mid2) % 2 != 0 && median % 2 != 0)
-          median += 1;
-      } else {
-        median = indexedArr[n / 2].value;
-      }
-
-      if (median == 0)
-        median = 1;
-
-      quantum_length = median;
+    // Update waiting time for all other processes in the queue
+    struct process *p;
+    TAILQ_FOREACH(p, &list, pointers) {
+        p->waiting_time++;
     }
 
-    //running the process
-    if (curr->running == false) {
-      curr->start_exec_time = time - 1;
-      curr->running = true;
+    // Move forward in time
+    current_time++;
+
+    // Re-queue the current process if it's still running and its quantum expired
+    if (current_process && current_time - current_process->start_exec_time >= quantum_length) {
+        TAILQ_INSERT_TAIL(&list, current_process, pointers); // Re-queue to the end
+        current_process = NULL; // Clear the current process as it's back in the queue
     }
+}
 
-    curr->remaining_time--;
-    quantum_count++;
+/* End of "Your code here" */
 
+// After simulation, calculate average wait time and average response time
+double average_wait_time = (double)total_wait_time / ps.nprocesses;
+double average_response_time = (double)total_response_time / ps.nprocesses;
 
-    // at end of quantum, re-insert process to end of queue if needed
-    if (quantum_count == quantum_length) {
-      TAILQ_REMOVE(&list, curr, pointers);
-      TAILQ_INSERT_TAIL(&list, curr, pointers);
+printf("Average wait time: %.2f\n", average_wait_time);
+printf("Average response time: %.2f\n", average_response_time);
 
-      // only context switch if there's more than one process in the queue
-      if (curr_proc_count > 1)
-        context_switch = true;
-
-      quantum_count = 0;
-
-      if (!fixed_quantum_length)
-        quantum_length = -1;
-
-    }
-  
-    //adding new process if arrival time is now
-    for (long i = 0; i < ps.nprocesses; i++) {
-      p = &ps.process[i];
-      if (p->arrival_time == time) {
-        p->remaining_time = p->burst_time;
-        p->waiting_time = 0;
-        p->running = false;
-        curr_proc_count++;
-        TAILQ_INSERT_TAIL(&list, &ps.process[i], pointers);
-      }
-    }
-
-    //if current process has run completely
-    if (curr->remaining_time == 0) {
-      curr->end_time = time;
-      quantum_count = 0;
-
-      if (!fixed_quantum_length) 
-        quantum_length = -1;
-
-      total_wait_time += (curr->end_time - curr->arrival_time - curr->burst_time);
-      total_response_time += curr->start_exec_time - curr->arrival_time;
-      num_changes++;
-      curr_proc_count--;
-      TAILQ_REMOVE(&list, curr, pointers);
-
-      // context switch if there are any processes left
-      if (curr_proc_count >= 1)
-        context_switch = true;
-
-    }
-
-    time++;
-  }
-
-  /* End of "Your code here" */
-
-  printf ("Average wait time: %.2f\n",
-	  total_wait_time / (double) ps.nprocesses);
-  printf ("Average response time: %.2f\n",
-	  total_response_time / (double) ps.nprocesses);
-
-  if (fflush (stdout) < 0 || ferror (stdout))
-    {
-      perror ("stdout");
-      return 1;
-    }
-
-  free (ps.process);
+/* Ensure to free the memory allocated for the process set */
+free(ps.process);
   return 0;
 }
