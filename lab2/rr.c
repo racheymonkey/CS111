@@ -161,6 +161,7 @@ int main(int argc, char *argv[])
 
   u32 total_waiting_time = 0;
   u32 total_response_time = 0;
+  u32 last_finished_time - 0;
 
   /* Your code here */
   u32 current_time = 0; // initialize current simulation time to 0
@@ -180,12 +181,23 @@ int main(int argc, char *argv[])
   // loop until all processes are complete
   while (!all_done) {
     // enqueue processes that have just arrived
+    u32 next_arrival_time = UINT32_MAX; // Initialize to maximum value
     for (u32 i = 0; i < size; ++i) {
-      // if current process's arrival time is now and it's not in the queue
-      if (data[i].arrival_time == current_time && !data[i].in_queue) {
-        TAILQ_INSERT_TAIL(&list, &data[i], pointers); // insert to end of list
-        data[i].in_queue = true;
-      }
+        if (data[i].arrival_time > current_time && data[i].arrival_time < next_arrival_time) {
+            next_arrival_time = data[i].arrival_time;
+        }
+    }
+
+    if (next_arrival_time > last_finished_time && last_finished_time != 0) {
+        u32 gap = next_arrival_time - last_finished_time;
+        if (gap > THRESHOLD) { // Define THRESHOLD according to your requirements
+            printf("Warning: Long gap of %u seconds between processes.\n", gap);
+        }
+    }
+
+    // Update last finished time if a process just finished
+    if (current_proc != NULL && current_proc->remaining_time == 0) {
+        last_finished_time = current_time;
     }
 
     // if current time slice is over or the current process is done
