@@ -175,7 +175,6 @@ for (u32 i = 0; i < size; ++i) {
 
 struct process *current_proc = NULL; // Pointer to the currently executing process
 
-// Inside the while loop
 while (!all_done) {
   bool idle = true;
   
@@ -188,15 +187,25 @@ while (!all_done) {
     }
   }
 
-  // Select the next process to execute if there is no current process
-  if (current_proc == NULL && !TAILQ_EMPTY(&list)) {
-    current_proc = TAILQ_FIRST(&list);
-    TAILQ_REMOVE(&list, current_proc, pointers); // Remove from queue
-    current_proc->in_queue = false; // Mark as not in the queue
+  // If there's no current process, or the quantum for the current process has expired, select the next process
+  if (current_proc == NULL || quantum_length == 0) {
+    if (!TAILQ_EMPTY(&list)) {
+      if (current_proc != NULL) {
+        // Only re-queue if there's remaining time
+        if (current_proc->remaining_time > 0) {
+          TAILQ_INSERT_TAIL(&list, current_proc, pointers);
+          current_proc->in_queue = true;
+        }
+        current_proc = NULL; // Reset current_proc after re-queuing
+      }
+      current_proc = TAILQ_FIRST(&list); // Select the next process from the queue
+      TAILQ_REMOVE(&list, current_proc, pointers); // Remove from queue
+      current_proc->in_queue = false; // Mark as not in the queue
 
-    if (!current_proc->responded) {
-      current_proc->responded = true;
-      total_response_time += current_time - current_proc->arrival_time;
+      if (!current_proc->responded) {
+        current_proc->responded = true;
+        total_response_time += current_time - current_proc->arrival_time;
+      }
     }
   }
 
@@ -205,7 +214,8 @@ while (!all_done) {
     idle = false;
     u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
     current_proc->remaining_time -= exec_time;
-    current_time += exec_time;
+    current_time += exec_time; // Move the system clock forward by exec_time
+    quantum_length -= exec_time; // Decrease the quantum_length by exec_time
 
     // Update waiting time for other processes in the queue
     struct process *tmp;
@@ -213,14 +223,10 @@ while (!all_done) {
       total_waiting_time += exec_time;
     }
 
-    // Re-queue the process if it has remaining time
-    if (current_proc->remaining_time > 0) {
-      TAILQ_INSERT_TAIL(&list, current_proc, pointers);
-      current_proc->in_queue = true;
+    // If the process has finished or quantum expired, reset current_proc to NULL
+    if (current_proc->remaining_time == 0 || quantum_length == 0) {
+      current_proc = NULL;
     }
-
-    // Reset current_proc to allow the next process to be scheduled
-    current_proc = NULL;
   }
 
   // Check if all processes are done
@@ -235,9 +241,9 @@ while (!all_done) {
   // Simulate time passing if idle
   if (idle) {
     current_time++;
+    quantum_length = next_int_from_c_str(argv[2]); // Reset quantum for the next cycle
   }
 }
-
   /* End of "Your code here" */
 
   printf("Average waiting time: %.2f\n", (float)total_waiting_time / (float)size);
