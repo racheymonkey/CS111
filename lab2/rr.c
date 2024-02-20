@@ -179,14 +179,38 @@ int main(int argc, char *argv[])
 
   // loop until all processes are complete
   while (!all_done) {
-    // enqueue processes that have just arrived
-    for (u32 i = 0; i < size; ++i) {
-      // if current process's arrival time is now and it's not in the queue
-      if (data[i].arrival_time == current_time && !data[i].in_queue) {
-        TAILQ_INSERT_TAIL(&list, &data[i], pointers); // insert to end of list
+// Loop to enqueue processes that have just arrived
+for (u32 i = 0; i < size; ++i) {
+    // If current process's arrival time is now and it's not in the queue
+    if (data[i].arrival_time == current_time && !data[i].in_queue) {
+        // Check if there's already a process running
+        if (current_proc != NULL) {
+            // If the new arrival has the same arrival time as the current process,
+            // prioritize the new arrival over the current process
+            if (current_proc->arrival_time == current_time) {
+                TAILQ_INSERT_BEFORE(current_proc, &data[i], pointers); // Insert before current process
+            } else {
+                TAILQ_INSERT_TAIL(&list, &data[i], pointers); // Insert to end of list
+            }
+        } else {
+            TAILQ_INSERT_TAIL(&list, &data[i], pointers); // Insert to end of list
+        }
         data[i].in_queue = true;
-      }
     }
+}
+
+// If there are no processes in the queue and there are more processes to arrive
+if (TAILQ_EMPTY(&list) && !all_done) {
+    // Find the earliest arrival time among the remaining processes
+    u32 next_arrival_time = UINT32_MAX;
+    for (u32 i = 0; i < size; ++i) {
+        if (data[i].remaining_time > 0 && data[i].arrival_time < next_arrival_time) {
+            next_arrival_time = data[i].arrival_time;
+        }
+    }
+    // Advance simulation time to the arrival time of the next process
+    current_time = next_arrival_time;
+}
 
     // if current time slice is over or the current process is done
     if (time_slice == 0 || (current_proc != NULL && current_proc->remaining_time == 0)) {
