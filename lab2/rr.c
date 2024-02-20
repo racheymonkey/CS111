@@ -163,58 +163,60 @@ int main(int argc, char *argv[])
 
   /* Your code here */
 	
-  // Initialize current time and a boolean to track if all processes are done
-u32 current_time = 0;
-bool all_done = false;
+  /* Additional fields for struct process */
+bool in_queue;  // New field to track if the process is already in the queue
 
-// Initialize each process's remaining time and responded flag
+/* Inside main function, after initializing the processes */
 for (u32 i = 0; i < size; ++i) {
   data[i].remaining_time = data[i].burst_time;
   data[i].responded = false;
+  data[i].in_queue = false;  // Initialize the new in_queue flag
 }
+
+struct process *current_proc = NULL; // Pointer to the currently executing process
 
 while (!all_done) {
   bool idle = true;
-
+  
   // Enqueue processes that have arrived
   for (u32 i = 0; i < size; ++i) {
-    if (data[i].arrival_time <= current_time && data[i].remaining_time > 0) {
+    if (data[i].arrival_time <= current_time && !data[i].in_queue) {
       TAILQ_INSERT_TAIL(&list, &data[i], pointers);
-      data[i].arrival_time = UINT32_MAX; // Prevent re-adding
+      data[i].in_queue = true; // Mark the process as in the queue
       idle = false;
     }
   }
 
-  if (!TAILQ_EMPTY(&list)) {
-    struct process *proc = TAILQ_FIRST(&list);
+  if (current_proc == NULL || current_proc->remaining_time == 0) {
+    if (!TAILQ_EMPTY(&list)) {
+      current_proc = TAILQ_FIRST(&list);
+      TAILQ_REMOVE(&list, current_proc, pointers);
+      current_proc->in_queue = false;
 
-    // Calculate response time if first time running
-    if (!proc->responded) {
-      proc->responded = true;
-      total_response_time += current_time - proc->arrival_time;
-    }
-
-    // Execute the process for a quantum or its remaining time
-    u32 exec_time = (proc->remaining_time < quantum_length) ? proc->remaining_time : quantum_length;
-    proc->remaining_time -= exec_time;
-    current_time += exec_time;
-    idle = false;
-
-    // Update waiting time for other processes
-    struct process *tmp;
-    TAILQ_FOREACH(tmp, &list, pointers) {
-      if (tmp != proc) {
-        total_waiting_time += exec_time;
+      if (!current_proc->responded) {
+        current_proc->responded = true;
+        total_response_time += current_time - current_proc->arrival_time;
       }
     }
+  }
 
-    // If process is done, remove it from the queue
-    if (proc->remaining_time == 0) {
-      TAILQ_REMOVE(&list, proc, pointers);
+  if (current_proc != NULL) {
+    idle = false;
+    u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
+    current_proc->remaining_time -= exec_time;
+    current_time += exec_time;
+
+    // Update waiting time for all processes in queue
+    struct process *tmp;
+    TAILQ_FOREACH(tmp, &list, pointers) {
+      total_waiting_time += exec_time;
+    }
+
+    if (current_proc->remaining_time > 0) {
+      TAILQ_INSERT_TAIL(&list, current_proc, pointers);
+      current_proc->in_queue = true;
     } else {
-      // Otherwise, move it to the end of the queue
-      TAILQ_REMOVE(&list, proc, pointers);
-      TAILQ_INSERT_TAIL(&list, proc, pointers);
+      current_proc = NULL;
     }
   }
 
