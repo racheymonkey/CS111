@@ -166,7 +166,8 @@ int main(int argc, char *argv[])
   u32 current_time = 0;
   bool all_done = false;
 
-/* Inside main function, after initializing the processes */
+/* Inside the main function, after initializing the processes */
+
 for (u32 i = 0; i < size; ++i) {
   data[i].remaining_time = data[i].burst_time;
   data[i].responded = false;
@@ -188,50 +189,48 @@ while (!all_done) {
     }
   }
 
-  // If there's no current process or the current process has finished, pick the next process from the queue
-  if (current_proc == NULL || current_proc->remaining_time == 0) {
-    if (current_proc != NULL && current_proc->remaining_time == 0) {
-      // Process finished, do not re-queue
-      current_proc = NULL;
-    }
-    
-    if (!TAILQ_EMPTY(&list)) {
-      current_proc = TAILQ_FIRST(&list);
-      TAILQ_REMOVE(&list, current_proc, pointers); // Remove from queue
-      current_proc->in_queue = false; // Mark as not in the queue
-
-      // Reset quantum for the new process
-      quantum_length = next_int_from_c_str(argv[2]);
-
-      if (!current_proc->responded) {
-        current_proc->responded = true;
-        total_response_time += current_time - current_proc->arrival_time;
+  if (current_proc != NULL && current_proc->remaining_time > 0) {
+    // Before re-adding the current process, check for any new arrivals
+    for (u32 i = 0; i < size; ++i) {
+      if (data[i].arrival_time == current_time && !data[i].in_queue) {
+        TAILQ_INSERT_TAIL(&list, &data[i], pointers);
+        data[i].in_queue = true;
+        idle = false;
       }
     }
+    // Re-add the current process only after checking for new arrivals
+    TAILQ_INSERT_TAIL(&list, current_proc, pointers);
+    current_proc->in_queue = true;
+    current_proc = NULL; // Clear the current process to allow the next process to be scheduled
   }
 
-  // Execute the current process
-  if (current_proc != NULL) {
-    idle = false;
-    u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
-    current_proc->remaining_time -= exec_time; // Deduct the executed time from the process's remaining time
-    current_time += exec_time; // Increment the current time by the execution time
+  if (TAILQ_EMPTY(&list) && current_proc == NULL) {
+    idle = true;
+  } else if (current_proc == NULL) {
+    current_proc = TAILQ_FIRST(&list);
+    TAILQ_REMOVE(&list, current_proc, pointers); // Remove from queue
+    current_proc->in_queue = false; // Mark as not in the queue
 
-    // Update waiting time for other processes in the queue
+    // Calculate response time if this is the first time the process is running
+    if (!current_proc->responded) {
+      current_proc->responded = true;
+      total_response_time += current_time - current_proc->arrival_time;
+    }
+
+    u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
+    current_proc->remaining_time -= exec_time;
+    current_time += exec_time; // Simulate the passage of time
+
+    // Update total waiting time
     struct process *tmp;
     TAILQ_FOREACH(tmp, &list, pointers) {
-      if (tmp != current_proc) {
-        total_waiting_time += exec_time; // Only increment waiting time for processes not currently executing
-      }
+      total_waiting_time += exec_time;
     }
 
-    // If the process's remaining time is 0, it's finished, otherwise re-queue it
-    if (current_proc->remaining_time > 0) {
-      TAILQ_INSERT_TAIL(&list, current_proc, pointers); // Re-insert the process at the end of the list
-      current_proc->in_queue = true;
+    if (current_proc->remaining_time == 0) {
+      // If the process finished execution, do not re-add it to the queue
+      current_proc = NULL;
     }
-    // Set current_proc to NULL so the next process can be picked in the next cycle
-    current_proc = NULL;
   }
 
   // Check if all processes are done
@@ -243,7 +242,7 @@ while (!all_done) {
     }
   }
 
-  // Simulate time passing if idle
+  // Increment the current time if the CPU was idle in this cycle
   if (idle) {
     current_time++;
   }
