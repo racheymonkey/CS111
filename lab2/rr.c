@@ -180,7 +180,7 @@ while (!all_done) {
   
   // Enqueue processes that have arrived
   for (u32 i = 0; i < size; ++i) {
-    if (data[i].arrival_time <= current_time && !data[i].in_queue) {
+    if (data[i].arrival_time <= current_time && !data[i].in_queue && data[i].remaining_time > 0) {
       TAILQ_INSERT_TAIL(&list, &data[i], pointers);
       data[i].in_queue = true; // Mark the process as in the queue
       idle = false;
@@ -188,10 +188,15 @@ while (!all_done) {
   }
 
   if (current_proc == NULL || current_proc->remaining_time == 0) {
+    if (current_proc && current_proc->remaining_time == 0) {
+      // Do not forget to reset current_proc here so it picks a new process next
+      current_proc = NULL;
+    }
+
     if (!TAILQ_EMPTY(&list)) {
       current_proc = TAILQ_FIRST(&list);
-      TAILQ_REMOVE(&list, current_proc, pointers);
-      current_proc->in_queue = false;
+      TAILQ_REMOVE(&list, current_proc, pointers); // Remove from queue
+      current_proc->in_queue = false; // Mark as not in the queue
 
       if (!current_proc->responded) {
         current_proc->responded = true;
