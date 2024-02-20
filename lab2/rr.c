@@ -188,6 +188,15 @@ int main(int argc, char *argv[])
       }
     }
 
+    // Initialize current_time to the maximum possible arrival time initially
+    u32 current_time = UINT32_MAX;
+    // Check if there are still processes remaining to arrive
+    for (u32 i = 0; i < size; ++i) {
+        if (data[i].arrival_time < current_time && data[i].remaining_time > 0) {
+            current_time = data[i].arrival_time;
+        }
+    }
+
     // if current time slice is over or the current process is done
     if (time_slice == 0 || (current_proc != NULL && current_proc->remaining_time == 0)) {
       // if there is a current process and it still has time left
