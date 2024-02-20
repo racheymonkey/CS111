@@ -185,15 +185,15 @@ int main(int argc, char *argv[])
     for (u32 i = 0; i < size; ++i) {
         if (data[i].arrival_time > current_time && data[i].arrival_time < next_arrival_time) {
             next_arrival_time = data[i].arrival_time;
+            current_time++;
         }
     }
 
     // Update last finished time if a process just finished
     if (current_proc != NULL && current_proc->remaining_time == 0) {
         last_finished_time = current_time;
+        current_time++;
     }
-
-    current_time++;
 
     // if current time slice is over or the current process is done
     if (time_slice == 0 || (current_proc != NULL && current_proc->remaining_time == 0)) {
