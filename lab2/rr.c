@@ -179,42 +179,47 @@ int main(int argc, char *argv[])
 
   // loop until all processes are complete
   while (!all_done) {
-// Loop to enqueue processes that have just arrived
-for (u32 i = 0; i < size; ++i) {
-    // If current process's arrival time is now and it's not in the queue
-    if (data[i].arrival_time == current_time && !data[i].in_queue) {
-        // Check if there's already a process running
-        if (current_proc != NULL) {
-            // If the new arrival has the same arrival time as the current process,
-            // prioritize the new arrival over the current process
-            if (current_proc->arrival_time == current_time) {
-                TAILQ_INSERT_BEFORE(current_proc, &data[i], pointers); // Insert before current process
+bool new_processes_added = false; // Flag to track if new processes have been added to the queue
+
+    // Loop to enqueue processes that have just arrived
+    for (u32 i = 0; i < size; ++i) {
+        // If current process's arrival time is now and it's not in the queue
+        if (data[i].arrival_time == current_time && !data[i].in_queue) {
+            // Check if there's already a process running
+            if (current_proc != NULL) {
+                // If the new arrival has the same arrival time as the current process,
+                // prioritize the new arrival over the current process
+                if (current_proc->arrival_time == current_time) {
+                    TAILQ_INSERT_BEFORE(current_proc, &data[i], pointers); // Insert before current process
+                } else {
+                    TAILQ_INSERT_TAIL(&list, &data[i], pointers); // Insert to end of list
+                }
             } else {
                 TAILQ_INSERT_TAIL(&list, &data[i], pointers); // Insert to end of list
             }
-        } else {
-            TAILQ_INSERT_TAIL(&list, &data[i], pointers); // Insert to end of list
+            data[i].in_queue = true;
+            new_processes_added = true; // Set flag to true indicating new process added to the queue
         }
-        data[i].in_queue = true;
     }
-}
 
-// If there are no processes in the queue and there are more processes to arrive
-if (TAILQ_EMPTY(&list) && !all_done) {
-    // Find the earliest arrival time among the remaining processes
-    u32 next_arrival_time = UINT32_MAX;
-    for (u32 i = 0; i < size; ++i) {
-        if (data[i].remaining_time > 0 && data[i].arrival_time < next_arrival_time) {
-            next_arrival_time = data[i].arrival_time;
+    // If no new processes were added and there are more processes to arrive
+    if (!new_processes_added && !all_done) {
+        // Find the earliest arrival time among the remaining processes
+        u32 next_arrival_time = UINT32_MAX;
+        for (u32 i = 0; i < size; ++i) {
+            if (data[i].remaining_time > 0 && data[i].arrival_time < next_arrival_time) {
+                next_arrival_time = data[i].arrival_time;
+            }
         }
+        // If next_arrival_time is still UINT32_MAX, it means all processes are done
+        if (next_arrival_time == UINT32_MAX) {
+            break; // Exit the loop if all processes are done
+        }
+        // Advance simulation time to the arrival time of the next process
+        current_time = next_arrival_time;
     }
-    // If next_arrival_time is still UINT32_MAX, it means all processes are done
-    if (next_arrival_time == UINT32_MAX) {
-        break; // Exit the loop if all processes are done
-    }
-    // Advance simulation time to the arrival time of the next process
-    current_time = next_arrival_time;
-}
+
+    
     // if current time slice is over or the current process is done
     if (time_slice == 0 || (current_proc != NULL && current_proc->remaining_time == 0)) {
       // if there is a current process and it still has time left
