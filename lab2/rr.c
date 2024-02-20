@@ -8,6 +8,7 @@
 #include <sys/queue.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <limits.h> // Include this for INT_MAX
 
 /* A process table entry.  */
 struct process {
@@ -42,12 +43,13 @@ static long next_int (char const **data, char const *data_end) {
       char c = *d;
       if ('0' <= c && c <= '9') {
         int_start = true;
-        if (ckd_mul (&current, current, 10) || ckd_add (&current, current, c - '0')) {
-          fprintf (stderr, "integer overflow\n");
-          exit (1);
-        }
-	    } else if (int_start)
-	      break;
+	// Replace the ckd_mul and ckd_add calls with these checks
+	if (current > LONG_MAX / 10 || (current * 10) > LONG_MAX - (c - '0')) {
+	    fprintf(stderr, "integer overflow\n");
+	    exit(1);
+	} else {
+	    current = current * 10 + (c - '0');
+	}
   }
 
   if (!int_start) {
@@ -155,7 +157,9 @@ int compareIndexedLongs(const void *a, const void *b) {
 }
 
 int main (int argc, char *argv[]) {
-  if (argc != 3) {
+  long completed_processes = 0;
+
+if (argc != 3) {
     fprintf (stderr, "%s: usage: %s file quantum\n", argv[0], argv[0]);
     return 1;
   }
