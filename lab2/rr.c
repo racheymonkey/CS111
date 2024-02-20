@@ -180,7 +180,21 @@ struct process *current_proc = NULL; // Pointer to the currently executing proce
 while (!all_done) {
   bool idle = true;
   
-  // Enqueue processes that have arrived
+/* Inside the main function, after initializing the processes */
+for (u32 i = 0; i < size; ++i) {
+  data[i].remaining_time = data[i].burst_time;
+  data[i].responded = false;
+  data[i].in_queue = false;  // Initialize the new in_queue flag
+}
+
+struct process *current_proc = NULL; // Pointer to the currently executing process
+u32 time_since_last_execution = 0; // Time since last process execution, to manage quantum effectively
+
+// Inside the while loop
+while (!all_done) {
+  bool idle = true;
+  
+  // Enqueue processes that have arrived by the current time
   for (u32 i = 0; i < size; ++i) {
     if (data[i].arrival_time <= current_time && !data[i].in_queue && data[i].remaining_time > 0) {
       TAILQ_INSERT_TAIL(&list, &data[i], pointers);
@@ -189,69 +203,66 @@ while (!all_done) {
     }
   }
 
-  if (current_proc != NULL && current_proc->remaining_time > 0) {
-    // Before re-adding the current process, check for any new arrivals
-    for (u32 i = 0; i < size; ++i) {
-      if (data[i].arrival_time == current_time && !data[i].in_queue) {
-        TAILQ_INSERT_TAIL(&list, &data[i], pointers);
-        data[i].in_queue = true;
-        idle = false;
-      }
+  if (!TAILQ_EMPTY(&list) && (current_proc == NULL || time_since_last_execution >= quantum_length)) {
+    if (current_proc && current_proc->remaining_time > 0) {
+      // Re-add the current process back to the queue if it still has time left
+      TAILQ_INSERT_TAIL(&list, current_proc, pointers);
+      current_proc->in_queue = true;
     }
-    // Re-add the current process only after checking for new arrivals
-    TAILQ_INSERT_TAIL(&list, current_proc, pointers);
-    current_proc->in_queue = true;
-    current_proc = NULL; // Clear the current process to allow the next process to be scheduled
-  }
-
-  if (TAILQ_EMPTY(&list) && current_proc == NULL) {
-    idle = true;
-  } else if (current_proc == NULL) {
+    
+    // Pick the next process from the queue
     current_proc = TAILQ_FIRST(&list);
-    TAILQ_REMOVE(&list, current_proc, pointers); // Remove from queue
-    current_proc->in_queue = false; // Mark as not in the queue
+    TAILQ_REMOVE(&list, current_proc, pointers);
+    current_proc->in_queue = false;
+    time_since_last_execution = 0; // Reset time since last execution for the new process
 
-    // Calculate response time if this is the first time the process is running
     if (!current_proc->responded) {
       current_proc->responded = true;
       total_response_time += current_time - current_proc->arrival_time;
     }
 
-    u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
-    current_proc->remaining_time -= exec_time;
-    current_time += exec_time; // Simulate the passage of time
+    idle = false;
+  }
 
-    // Update total waiting time
+  // Execute the current process
+  if (current_proc != NULL && current_proc->remaining_time > 0) {
+    u32 exec_time = (current_proc->remaining_time < quantum_length - time_since_last_execution) ? current_proc->remaining_time : (quantum_length - time_since_last_execution);
+    current_proc->remaining_time -= exec_time;
+    current_time += exec_time; // Increment the current time by the execution time
+    time_since_last_execution += exec_time; // Update time since last execution
+
+    // Update waiting time for other processes in the queue
     struct process *tmp;
     TAILQ_FOREACH(tmp, &list, pointers) {
       total_waiting_time += exec_time;
     }
+    idle = false;
+  }
 
-    if (current_proc->remaining_time == 0) {
-      // If the process finished execution, do not re-add it to the queue
-      current_proc = NULL;
-    }
+  // If the current process has finished, reset current_proc to allow picking a new process
+  if (current_proc && current_proc->remaining_time == 0) {
+    current_proc = NULL;
   }
 
   // Check if all processes are done
   all_done = true;
-  for (u32 i = 0; i < size; ++i) {
-    if (data[i].remaining_time > 0) {
+  TAILQ_FOREACH(tmp, &list, pointers) {
+    if (tmp->remaining_time > 0) {
       all_done = false;
       break;
     }
   }
+  if (current_proc != NULL) all_done = false;
 
   // Increment the current time if the CPU was idle in this cycle
   if (idle) {
     current_time++;
   }
 }
-  /* End of "Your code here" */
 
-  printf("Average waiting time: %.2f\n", (float)total_waiting_time / (float)size);
-  printf("Average response time: %.2f\n", (float)total_response_time / (float)size);
+printf("Average waiting time: %.2f\n", (float)total_waiting_time / (float)size);
+printf("Average response time: %.2f\n", (float)total_response_time / (float)size);
 
-  free(data);
-  return 0;
-}
+free(data);
+return 0;
+
