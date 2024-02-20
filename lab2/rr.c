@@ -209,12 +209,12 @@ if (TAILQ_EMPTY(&list) && !all_done) {
         }
     }
     // If next_arrival_time is still UINT32_MAX, it means all processes are done
-    if (next_arrival_time != UINT32_MAX) {
-        // Advance simulation time to the arrival time of the next process
-        current_time = next_arrival_time;
+    if (next_arrival_time == UINT32_MAX) {
+        break; // Exit the loop if all processes are done
     }
+    // Advance simulation time to the arrival time of the next process
+    current_time = next_arrival_time;
 }
-
     // if current time slice is over or the current process is done
     if (time_slice == 0 || (current_proc != NULL && current_proc->remaining_time == 0)) {
       // if there is a current process and it still has time left
