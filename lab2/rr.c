@@ -188,13 +188,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (next_arrival_time > last_finished_time && last_finished_time != 0) {
-        u32 gap = next_arrival_time - last_finished_time;
-        if (gap > THRESHOLD) { // Define THRESHOLD according to your requirements
-            printf("Warning: Long gap of %u seconds between processes.\n", gap);
-        }
-    }
-
     // Update last finished time if a process just finished
     if (current_proc != NULL && current_proc->remaining_time == 0) {
         last_finished_time = current_time;
