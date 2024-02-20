@@ -193,6 +193,8 @@ int main(int argc, char *argv[])
         last_finished_time = current_time;
     }
 
+    current_time++;
+
     // if current time slice is over or the current process is done
     if (time_slice == 0 || (current_proc != NULL && current_proc->remaining_time == 0)) {
       // if there is a current process and it still has time left
