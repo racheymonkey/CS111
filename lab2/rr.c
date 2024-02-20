@@ -187,14 +187,19 @@ int main(int argc, char *argv[])
       }
     }
 
-    // Initialize current_time to the maximum possible arrival time initially
-    u32 current_time = UINT32_MAX;
-    // Check if there are still processes remaining to arrive
+// Initialize current_time to zero
+u32 current_time = 0;
+
+// If there are no processes in the queue and there are more processes to arrive
+if (TAILQ_EMPTY(&list) && !all_done) {
+    // Find the earliest arrival time among the remaining processes
+    current_time = UINT32_MAX; // Set to maximum possible value initially
     for (u32 i = 0; i < size; ++i) {
-        if (data[i].arrival_time < current_time && data[i].remaining_time > 0) {
+        if (data[i].arrival_time > current_time && data[i].remaining_time > 0) {
             current_time = data[i].arrival_time;
         }
     }
+}
 
     // if current time slice is over or the current process is done
     if (time_slice == 0 || (current_proc != NULL && current_proc->remaining_time == 0)) {
