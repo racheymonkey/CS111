@@ -213,16 +213,23 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Calculate the average response time
+// Main logic for process execution and time calculation remains unchanged.
+
+    // Corrected calculation for waiting and response times
+    u32 total_executed_processes = 0; // Track the number of processes that have been executed for accurate averaging
+    
     for (u32 i = 0; i < size; i++) {
         if (data[i].has_been_executed) {
-            total_response_time += data[i].first_execution_time - data[i].arrival_time;
+            total_waiting_time += data[i].total_waiting_time;
+            total_response_time += (data[i].first_execution_time - data[i].arrival_time);
+            total_executed_processes++; // Increment for each executed process
         }
     }
-
-    float avg_waiting_time = (float)total_waiting_time / size;
-    float avg_response_time = (float)total_response_time / size;
-
+    
+    // Ensure we divide by the number of executed processes, not the total size, for response time
+    float avg_waiting_time = (float)total_waiting_time / size; // Waiting time divided by total size is correct
+    float avg_response_time = total_executed_processes > 0 ? (float)total_response_time / total_executed_processes : 0; // Avoid division by zero
+    
     printf("Average waiting time: %.2f\n", avg_waiting_time);
     printf("Average response time: %.2f\n", avg_response_time);
 
