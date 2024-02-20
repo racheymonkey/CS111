@@ -40,6 +40,6 @@ Average response time: 2.75'
 ## Cleaning up
 
 ```shell
-In order to clean and remove the binary files created during the build process, paste and enter the following command in the terminal:
+In order to clean and remove the binary files created during the build process, paste and enter the following command into the terminal:
 'make clean'
 ```
