@@ -246,6 +246,7 @@ while (!all_done) {
 
   // Check if all processes are done
   all_done = true;
+      struct process *tmp;
   TAILQ_FOREACH(tmp, &list, pointers) {
     if (tmp->remaining_time > 0) {
       all_done = false;
@@ -265,4 +266,4 @@ printf("Average response time: %.2f\n", (float)total_response_time / (float)size
 
 free(data);
 return 0;
-
+}
