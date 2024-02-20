@@ -1,6 +1,6 @@
 # You Spin Me Round Robin
 
-TODO
+This lab focused on the implenentation of a Round Robin scheduling algorithm, utilizing the 'sys/queue.h' library and its 'TAILQ' macros for efficient process queue management. This task required a detailed setup of process scheduling to ensure equal CPU time distribution givan an input of a predefined quantum length. In this lab, I focused on managing process arrival, execution, and completion times through the maniplation of a doubly linked list.
 
 ## Building
 
@@ -23,14 +23,18 @@ Paste and enter the following command in the terminal:
 
 In our lab, the text file containing process information was given to us in the same directory as the simulation source code. Thus, I inputted the following command into the terminal to run the simulation:
 './rr processes.txt 3'
-
+This command will run the scheduler with a quantum length of 3 times unit.
 ```
 
 results TODO
 ```shell
+The results of the scheduler would generally follow this format:
+'Average waiting time: [float number]
+Average response time: [float number]'
 
-The results of the 
-
+If the command './rr processes.txt 3' is inputted into the terminal, I get the following result:
+'Average waiting time: 7.00
+Average response time: 2.75'
 ```
 
 ## Cleaning up
