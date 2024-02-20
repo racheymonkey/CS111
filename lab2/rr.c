@@ -163,7 +163,6 @@ int main(int argc, char *argv[])
   u32 total_response_time = 0;
 
   /* Your code here */
-  u32 current_time = 0; // initialize current simulation time to 0
   bool all_done = false; // check if all processes are done
   u32 time_slice = 0; // time slice for quantum
 
