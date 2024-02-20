@@ -214,14 +214,15 @@ int main(int argc, char *argv[])
   
   // Calculate the total waiting and response times.
   for (u32 i = 0; i < size; i++) {
-      total_waiting_time += data[i].total_waiting_time;
-      total_response_time += data[i].first_execution_time - data[i].arrival_time;
+      // Ensure the response time is only calculated if the process was executed.
+      if (data[i].has_been_executed) {
+          total_response_time += data[i].first_execution_time - data[i].arrival_time;
+      }
   }
   
-  // Calculate average waiting and response times.
   float avg_waiting_time = (float)total_waiting_time / (float)size;
   float avg_response_time = (float)total_response_time / (float)size;
-
+  
   printf("Average waiting time: %.2f\n", avg_waiting_time);
   printf("Average response time: %.2f\n", avg_response_time);
   
