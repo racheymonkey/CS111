@@ -195,23 +195,30 @@ void simulate_round_robin(struct process_list *list, struct process *processes, 
   printf("Average response time: %.2f\n", (float)total_response_time / size);
 }
 
-int main(int argc, char *argv[])
-{
-  if (argc != 3)
-  {
-    return EINVAL;
-  }
-  struct process *data;
-  u32 size;
-  init_processes(argv[1], &data, &size);
+int main(int argc, char *argv[]) {
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <process file> <quantum>\n", argv[0]);
+        return EINVAL;
+    }
 
-  u32 quantum_length = next_int_from_c_str(argv[2]);
+    struct process *data;
+    u32 size;
+    u32 quantum_length = next_int_from_c_str(argv[2]);
+    struct process_list list; // Declare the process list.
 
-  /* Your code here */
-  init_processes(argv[1], &data, &size);
-  simulate_round_robin(&list, data, size, quantum_length);
-  /* End of "Your code here" */
+    // Initialize processes from the file.
+    init_processes(argv[1], &data, &size);
 
-  free(data);
-  return 0;
+    // Adjustments for initializing additional fields based on your constraints.
+    for (u32 i = 0; i < size; ++i) {
+        data[i].remaining_time = data[i].burst_time; // Set remaining_time.
+        data[i].has_started = false; // Ensure has_started is set to false.
+        data[i].start_time = 0; // Initialize start_time.
+    }
+
+    // Now, simulate round-robin scheduling.
+    simulate_round_robin(&list, data, size, quantum_length);
+
+    free(data); // Free the allocated memory for processes.
+    return 0;
 }
