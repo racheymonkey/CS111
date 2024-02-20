@@ -21,9 +21,9 @@ struct process
   TAILQ_ENTRY(process) pointers;
 
   /* Additional fields here */
-  u32 remaining_time; // For tracking remaining burst time
-  bool responded;     // For tracking if the process has been responded to
-  bool in_queue;  // New field to track if the process is already in the queue
+  u32 remaining_time;
+  bool responded;
+  bool in_queue;
   /* End of "Additional fields here" */
 };
 
