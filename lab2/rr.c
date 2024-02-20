@@ -267,3 +267,4 @@ printf("Average response time: %.2f\n", (float)total_response_time / (float)size
 free(data);
 return 0;
 }
+}
