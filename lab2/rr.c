@@ -146,81 +146,72 @@ void init_processes(const char *path,
 }
 
 void simulate_round_robin(struct process_list *list, struct process *processes, u32 size, u32 quantum) {
-  u32 current_time = 0;
-  u32 total_waiting_time = 0;
-  u32 total_turnaround_time = 0;
-  int processes_in_queue = 0;
-
+  u32 current_time = 0, completed_processes = 0;
+  u32 total_waiting_time = 0, total_response_time = 0;
+  struct process *proc, *temp_proc;
   TAILQ_INIT(list);
 
-  while (size > 0) {
-    // Add arriving processes to the queue
+  while (completed_processes < size) {
+    // Add processes to the queue based on arrival time.
     for (u32 i = 0; i < size; i++) {
       if (!processes[i].has_started && processes[i].arrival_time <= current_time) {
-        processes[i].remaining_time = processes[i].burst_time;
-        processes[i].has_started = true;
         TAILQ_INSERT_TAIL(list, &processes[i], pointers);
-        processes_in_queue++;
+        processes[i].has_started = true;
+        processes[i].start_time = current_time;
       }
     }
 
-    if (!TAILQ_EMPTY(list)) {
-      struct process *proc = TAILQ_FIRST(list);
+    // Schedule the first process in the queue.
+    proc = TAILQ_FIRST(list);
+    if (proc != NULL) {
+      u32 execute_time = (proc->remaining_time > quantum) ? quantum : proc->remaining_time;
+      proc->remaining_time -= execute_time;
+      current_time += execute_time;
 
-      // Calculate waiting time
+      // Calculate waiting time for other processes in the queue.
       TAILQ_FOREACH(temp_proc, list, pointers) {
         if (temp_proc != proc) {
-          total_waiting_time += quantum;
+          total_waiting_time += execute_time;
         }
       }
 
-      // Execute process
-      u32 run_time = (quantum < proc->remaining_time) ? quantum : proc->remaining_time;
-      proc->remaining_time -= run_time;
-      current_time += run_time;
-
       if (proc->remaining_time == 0) {
-        // Process completed
-        total_turnaround_time += current_time - proc->arrival_time;
+        // Calculate response time.
+        total_response_time += proc->start_time - proc->arrival_time;
         TAILQ_REMOVE(list, proc, pointers);
-        processes_in_queue--;
-        size--;
+        completed_processes++;
       } else {
-        // Re-queue the process
+        // Re-add the process to the end of the queue if not finished.
         TAILQ_REMOVE(list, proc, pointers);
         TAILQ_INSERT_TAIL(list, proc, pointers);
       }
     } else {
+      // Increment current time if no process is ready to execute.
       current_time++;
     }
   }
 
-  // Calculate average waiting time and average response time
-  float average_waiting_time = (float)total_waiting_time / (float)(size);
-  float average_response_time = (float)total_turnaround_time / (float)(size);
-  
-  printf("Average waiting time: %.2f\n", average_waiting_time);
-  printf("Average response time: %.2f\n", average_response_time);
+  printf("Average waiting time: %.2f\n", (float)total_waiting_time / size);
+  printf("Average response time: %.2f\n", (float)total_response_time / size);
 }
 
-int main(int argc, char *argv[]) {
-  if (argc != 3) {
-    fprintf(stderr, "Usage: %s <process file> <quantum>\n", argv[0]);
+int main(int argc, char *argv[])
+{
+  if (argc != 3)
+  {
     return EINVAL;
   }
-
   struct process *data;
   u32 size;
-  struct process_list list; // Declare the process list.
+  init_processes(argv[1], &data, &size);
 
   u32 quantum_length = next_int_from_c_str(argv[2]);
 
-  // Initialize processes from the file.
+  /* Your code here */
   init_processes(argv[1], &data, &size);
-
-  // Now, simulate round-robin scheduling.
   simulate_round_robin(&list, data, size, quantum_length);
+  /* End of "Your code here" */
 
-  free(data); // Free the allocated memory for processes.
+  free(data);
   return 0;
 }
