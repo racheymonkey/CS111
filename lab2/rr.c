@@ -204,8 +204,6 @@ int main(int argc, char *argv[]) {
             } else {
                 // Re-queue the process
                 proc->last_added_time = current_time; // Update last added time for accurate waiting time calculation
-                TAILQ_REMOVE(&ready_queue, proc, pointers);
-                TAILQ_INSERT_TAIL(&ready_queue, proc, pointers);
             }
         } else {
             // Increment current time if no process is ready
@@ -213,22 +211,22 @@ int main(int argc, char *argv[]) {
         }
     }
 
-// Main logic for process execution and time calculation remains unchanged.
+  // Main logic for process execution and time calculation remains unchanged.
 
-    // Corrected calculation for waiting and response times
-    u32 total_executed_processes = 0; // Track the number of processes that have been executed for accurate averaging
+  // Corrected calculation for waiting and response times
+    total_waiting_time = 0; // Reset total_waiting_time to correctly accumulate it based on the fixed logic
+    total_response_time = 0; // Reset total_response_time for accurate calculation
     
     for (u32 i = 0; i < size; i++) {
+        total_waiting_time += data[i].total_waiting_time;
         if (data[i].has_been_executed) {
-            total_waiting_time += data[i].total_waiting_time;
+            // Ensure accurate response time calculation by considering only executed processes
             total_response_time += (data[i].first_execution_time - data[i].arrival_time);
-            total_executed_processes++; // Increment for each executed process
         }
     }
     
-    // Ensure we divide by the number of executed processes, not the total size, for response time
-    float avg_waiting_time = (float)total_waiting_time / size; // Waiting time divided by total size is correct
-    float avg_response_time = total_executed_processes > 0 ? (float)total_response_time / total_executed_processes : 0; // Avoid division by zero
+    float avg_waiting_time = (float)total_waiting_time / size;
+    float avg_response_time = (float)total_response_time / size; // Now, this calculation is accurate as we've ensured all executed processes contribute to the response time.
     
     printf("Average waiting time: %.2f\n", avg_waiting_time);
     printf("Average response time: %.2f\n", avg_response_time);
