@@ -23,6 +23,7 @@ struct process
   /* Additional fields here */
   u32 remaining_time; // For tracking remaining burst time
   bool responded;     // For tracking if the process has been responded to
+  bool in_queue;  // New field to track if the process is already in the queue
   /* End of "Additional fields here" */
 };
 
@@ -162,9 +163,6 @@ int main(int argc, char *argv[])
   u32 total_response_time = 0;
 
   /* Your code here */
-	
-  /* Additional fields for struct process */
-bool in_queue;  // New field to track if the process is already in the queue
 
 /* Inside main function, after initializing the processes */
 for (u32 i = 0; i < size; ++i) {
