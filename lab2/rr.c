@@ -204,29 +204,40 @@ while (!all_done) {
       }
     }
   }
-/* Inside the while loop */
+// ...
+// Inside the while loop
 if (current_proc != NULL) {
   idle = false;
+  // Determine the execution time for the current process
   u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
-  current_proc->remaining_time -= exec_time;
-  current_time += exec_time;
-
-  // Correctly update waiting time for all processes in the queue
-  struct process *tmp = TAILQ_FIRST(&list); // Start from the head of the list
-  while (tmp != NULL) {
-    if (tmp != current_proc) {
-      total_waiting_time += exec_time; // Only increment waiting time for processes not currently executing
+  current_proc->remaining_time -= exec_time; // Reduce the remaining time by exec_time
+  current_time += exec_time; // Move the system clock forward by exec_time
+  
+  // Calculate the waiting time for other processes in the queue
+  struct process *tmp;
+  TAILQ_FOREACH(tmp, &list, pointers) {
+    if (tmp != current_proc) { // Do not increment waiting time for the current process
+      total_waiting_time += exec_time;
     }
-    tmp = TAILQ_NEXT(tmp, pointers); // Move to the next process in the list
   }
-
-  // If the process has finished, don't put it back in the queue
+  
+  // Re-queue the process if it has remaining time
   if (current_proc->remaining_time > 0) {
     TAILQ_INSERT_TAIL(&list, current_proc, pointers); // Re-insert the process at the end of the list if not done
     current_proc->in_queue = true;
   } else {
-    // If finished, don't set current_proc to NULL immediately, wait until next cycle
-    // This allows the scheduler to check for new arrivals before picking the next process
+    // Mark the process as no longer in queue and reset the current_proc pointer
+    current_proc->in_queue = false;
+    current_proc = NULL; // Set to NULL so a new process can be picked
+  }
+} else if (!TAILQ_EMPTY(&list)) {
+  // If there is no current process running and the queue is not empty, pick the next process
+  current_proc = TAILQ_FIRST(&list);
+  TAILQ_REMOVE(&list, current_proc, pointers);
+  current_proc->in_queue = false;
+  if (!current_proc->responded) {
+    current_proc->responded = true;
+    total_response_time += current_time - current_proc->arrival_time;
   }
 }
 
