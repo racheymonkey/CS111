@@ -165,6 +165,7 @@ int main(int argc, char *argv[])
   /* Your code here */
   u32 current_time = 0;
   bool all_done = false;
+  u32 time_slice = 0;
 
 /* Inside main function, after initializing the processes */
 for (u32 i = 0; i < size; ++i) {
@@ -174,64 +175,60 @@ for (u32 i = 0; i < size; ++i) {
 }
 
 struct process *current_proc = NULL; // Pointer to the currently executing process
+struct process *next_proc = NULL;
 
-// Inside the while loop
 while (!all_done) {
-  bool idle = true;
-  
-  // Enqueue processes that have arrived
+  // Check for process arrivals and add them to the queue before re-adding the current process
   for (u32 i = 0; i < size; ++i) {
-    if (data[i].arrival_time <= current_time && !data[i].in_queue && data[i].remaining_time > 0) {
+    if (data[i].arrival_time == current_time && !data[i].in_queue) {
       TAILQ_INSERT_TAIL(&list, &data[i], pointers);
-      data[i].in_queue = true; // Mark the process as in the queue
-      idle = false;
+      data[i].in_queue = true;
     }
   }
 
-  // If there's no current process or the current process has finished, pick the next process from the queue
-  if (current_proc == NULL || current_proc->remaining_time == 0) {
-    if (current_proc != NULL && current_proc->remaining_time == 0) {
-      // Process finished, do not re-queue
-      current_proc = NULL;
+  // If the time slice is over or the current process is finished, move to the next process
+  if (time_slice == 0 || (current_proc != NULL && current_proc->remaining_time == 0)) {
+    if (current_proc != NULL && current_proc->remaining_time > 0) {
+      // Re-queue the current process if it still has time left
+      TAILQ_INSERT_TAIL(&list, current_proc, pointers);
+      current_proc->in_queue = true;
     }
-    
+
     if (!TAILQ_EMPTY(&list)) {
-      current_proc = TAILQ_FIRST(&list);
-      TAILQ_REMOVE(&list, current_proc, pointers); // Remove from queue
-      current_proc->in_queue = false; // Mark as not in the queue
+      next_proc = TAILQ_FIRST(&list);
+      TAILQ_REMOVE(&list, next_proc, pointers);
+      next_proc->in_queue = false;
 
-      // Reset quantum for the new process
-      quantum_length = next_int_from_c_str(argv[2]);
-
-      if (!current_proc->responded) {
-        current_proc->responded = true;
-        total_response_time += current_time - current_proc->arrival_time;
+      if (!next_proc->responded) {
+        next_proc->responded = true;
+        total_response_time += current_time - next_proc->arrival_time;
       }
+
+      // Reset time slice for the new process
+      time_slice = quantum_length;
+      current_proc = next_proc; // Update the current process pointer here
     }
   }
 
   // Execute the current process
   if (current_proc != NULL) {
-    idle = false;
-    u32 exec_time = (current_proc->remaining_time < quantum_length) ? current_proc->remaining_time : quantum_length;
-    current_proc->remaining_time -= exec_time; // Deduct the executed time from the process's remaining time
-    current_time += exec_time; // Increment the current time by the execution time
+    // Decrease the remaining time and time slice
+    current_proc->remaining_time--;
+    time_slice--;
 
-    // Update waiting time for other processes in the queue
+    // Increment the current time
+    current_time++;
+
+    // Update waiting time for all processes in the queue
     struct process *tmp;
     TAILQ_FOREACH(tmp, &list, pointers) {
       if (tmp != current_proc) {
-        total_waiting_time += exec_time; // Only increment waiting time for processes not currently executing
+        total_waiting_time++;
       }
     }
-
-    // If the process's remaining time is 0, it's finished, otherwise re-queue it
-    if (current_proc->remaining_time > 0) {
-      TAILQ_INSERT_TAIL(&list, current_proc, pointers); // Re-insert the process at the end of the list
-      current_proc->in_queue = true;
-    }
-    // Set current_proc to NULL so the next process can be picked in the next cycle
-    current_proc = NULL;
+  } else {
+    // If there is no current process, increment the current time
+    current_time++;
   }
 
   // Check if all processes are done
@@ -241,11 +238,6 @@ while (!all_done) {
       all_done = false;
       break;
     }
-  }
-
-  // Simulate time passing if idle
-  if (idle) {
-    current_time++;
   }
 }
   /* End of "Your code here" */
