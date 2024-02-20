@@ -208,8 +208,11 @@ if (TAILQ_EMPTY(&list) && !all_done) {
             next_arrival_time = data[i].arrival_time;
         }
     }
-    // Advance simulation time to the arrival time of the next process
-    current_time = next_arrival_time;
+    // If next_arrival_time is still UINT32_MAX, it means all processes are done
+    if (next_arrival_time != UINT32_MAX) {
+        // Advance simulation time to the arrival time of the next process
+        current_time = next_arrival_time;
+    }
 }
 
     // if current time slice is over or the current process is done
