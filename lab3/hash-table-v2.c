@@ -74,21 +74,25 @@ bool hash_table_v2_contains(struct hash_table_v2 *hash_table,
 void hash_table_v2_add_entry(struct hash_table_v2 *hash_table,
                              const char *key,
                              uint32_t value) {
-    uint32_t index = bernstein_hash(key) % HASH_TABLE_CAPACITY;
-    struct hash_table_entry *entry = &hash_table->entries[index];
-    
-    pthread_mutex_lock(&entry->mutex); // Lock the entry
-    struct list_entry *list_entry = get_list_entry(hash_table, key, &entry->list_head);
+    struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
 
-    if (list_entry != NULL) {
-        list_entry->value = value;
-    } else {
-        list_entry = calloc(1, sizeof(struct list_entry));
-        list_entry->key = strdup(key); // Duplicate key
-        list_entry->value = value;
-        SLIST_INSERT_HEAD(&entry->list_head, list_entry, pointers);
-    }
-    pthread_mutex_unlock(&entry->mutex); // Unlock the entry
+    pthread_mutex_lock(&hash_table_entry->mutex); // Lock the entry
+
+	struct list_head *list_head = &hash_table_entry->list_head;
+	struct list_entry *list_entry = get_list_entry(hash_table, key, list_head);
+
+	/* Update the value if it already exists */
+	if (list_entry != NULL) {
+		list_entry->value = value;
+		return;
+	}
+
+	list_entry = calloc(1, sizeof(struct list_entry));
+	list_entry->key = key;
+	list_entry->value = value;
+	SLIST_INSERT_HEAD(list_head, list_entry, pointers);
+    
+    pthread_mutex_unlock(&hash_table_entry->mutex); // Unlock the entry
 }
 
 uint32_t hash_table_v2_get_value(struct hash_table_v2 *hash_table,
