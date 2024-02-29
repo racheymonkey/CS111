@@ -20,6 +20,10 @@ struct hash_table_entry {
     pthread_mutex_t mutex; // Mutex for each entry for v2
 };
 
+struct hash_table_v2 {
+	struct hash_table_entry entries[HASH_TABLE_CAPACITY];
+};
+
 // Modify hash_table_v2_create to initialize mutexes for each entry
 struct hash_table_v2 *hash_table_v2_create() {
     struct hash_table_v2 *hash_table = calloc(1, sizeof(struct hash_table_v2));
