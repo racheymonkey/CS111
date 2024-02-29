@@ -103,9 +103,9 @@ uint32_t hash_table_v1_get_value(struct hash_table_v1 *hash_table,
 	return list_entry->value;
 }
 
+// Modify hash_table_v1_destroy to destroy the mutex
 void hash_table_v1_destroy(struct hash_table_v1 *hash_table) {
-    pthread_mutex_destroy(&hash_table->mutex); // Destroy the mutex
-    for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
+	pthread_mutex_destroy(&hash_table->mutex); // Destroy the mutex
 	for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
 		struct hash_table_entry *entry = &hash_table->entries[i];
 		struct list_head *list_head = &entry->list_head;
@@ -116,7 +116,5 @@ void hash_table_v1_destroy(struct hash_table_v1 *hash_table) {
 			free(list_entry);
 		}
 	}
-    }
-    free(hash_table);
+	free(hash_table);
 }
-
