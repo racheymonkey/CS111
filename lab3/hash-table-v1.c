@@ -15,6 +15,10 @@ struct list_entry {
 
 SLIST_HEAD(list_head, list_entry);
 
+struct hash_table_entry {
+	struct list_head list_head;
+};
+
 struct hash_table_v1 {
     struct hash_table_entry entries[HASH_TABLE_CAPACITY];
     pthread_mutex_t mutex; // Single mutex for v1
