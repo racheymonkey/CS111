@@ -39,16 +39,18 @@ void hash_table_v2_add(struct hash_table_v2 *table, const char *key, uint32_t va
     struct entry *new_entry = malloc(sizeof(struct entry));
     assert(new_entry != NULL); // Ensure entry allocation succeeded
 
-    // Duplicate key for safe ownership
-    new_entry->key = strdup(key);
+    new_entry->key = strdup(key); // Duplicate key for safe ownership
     new_entry->value = value;
     pthread_mutex_init(&new_entry->mutex, NULL); // Initialize mutex for new entry
 
-    // Lock only the necessary entry (or the first entry in the bucket for insertion)
-    pthread_mutex_lock(&table->entries[index]->mutex);
+    if (table->entries[index] != NULL) {
+        pthread_mutex_lock(&table->entries[index]->mutex); // Lock only if exists
+    }
     new_entry->next = table->entries[index];
     table->entries[index] = new_entry;
-    pthread_mutex_unlock(&table->entries[index]->mutex);
+    if (table->entries[index] != NULL) {
+        pthread_mutex_unlock(&table->entries[index]->mutex); // Unlock only if previously locked
+    }
 }
 
 bool hash_table_v2_contains(struct hash_table_v2 *table, const char *key) {
