@@ -1,109 +1,124 @@
 #include "hash-table-base.h"
 
-#include <pthread.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include <sys/queue.h>
 
-#define HASH_TABLE_CAPACITY 1024
+#include <pthread.h>
 
-struct entry {
-    const char *key;
-    uint32_t value;
-    struct entry *next;
-    pthread_mutex_t mutex; // Mutex for each entry for fine-grained locking
+struct list_entry {
+	const char *key;
+	uint32_t value;
+	SLIST_ENTRY(list_entry) pointers;
+};
+
+SLIST_HEAD(list_head, list_entry);
+
+struct hash_table_entry {
+    struct list_head list_head;
+    pthread_mutex_t mutex; // Mutex for each entry for v2
 };
 
 struct hash_table_v2 {
-    struct entry *entries[HASH_TABLE_CAPACITY];
+	struct hash_table_entry entries[HASH_TABLE_CAPACITY];
 };
 
-// Utility function for computing the hash of a key
-static uint32_t hash(const char *key) {
-    uint32_t hash = 5381;
-    int c;
-    while ((c = *key++))
-        hash = ((hash << 5) + hash) + c; // hash * 33 + c
-    return hash % HASH_TABLE_CAPACITY;
-}
-
+// Modify hash_table_v2_create to initialize mutexes for each entry
 struct hash_table_v2 *hash_table_v2_create() {
-    struct hash_table_v2 *table = malloc(sizeof(struct hash_table_v2));
-    assert(table != NULL); // Ensure table allocation succeeded
-    memset(table->entries, 0, sizeof(table->entries));
-    return table;
+    struct hash_table_v2 *hash_table = calloc(1, sizeof(struct hash_table_v2));
+    assert(hash_table != NULL);
+    for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
+        struct hash_table_entry *entry = &hash_table->entries[i];
+        SLIST_INIT(&entry->list_head);
+        pthread_mutex_init(&entry->mutex, NULL); // Initialize the mutex for each entry
+    }
+    return hash_table;
 }
 
-void hash_table_v2_add(struct hash_table_v2 *table, const char *key, uint32_t value) {
-    uint32_t index = hash(key);
-
-    // Prepare new entry
-    struct entry *new_entry = malloc(sizeof(struct entry));
-    assert(new_entry != NULL); // Ensure entry allocation succeeded
-    new_entry->key = strdup(key); // Duplicate key for safe ownership
-    new_entry->value = value;
-    pthread_mutex_init(&new_entry->mutex, NULL); // Initialize mutex for new entry
-
-    // Correctly handle locking
-    pthread_mutex_lock(&table->entries[index]->mutex); // Lock the head of the list at index, if it exists
-    if (table->entries[index] != NULL) {
-        pthread_mutex_lock(&table->entries[index]->mutex); // Proper check before locking
-    }
-    new_entry->next = table->entries[index];
-    table->entries[index] = new_entry;
-    if (new_entry->next) { // If there was a next, it's now safely behind the new entry, unlock it
-        pthread_mutex_unlock(&new_entry->next->mutex);
-    }
-    pthread_mutex_unlock(&new_entry->mutex); // Unlock the newly added entry's mutex after linking it
+static struct hash_table_entry *get_hash_table_entry(struct hash_table_v2 *hash_table,
+                                                     const char *key)
+{
+	assert(key != NULL);
+	uint32_t index = bernstein_hash(key) % HASH_TABLE_CAPACITY;
+	struct hash_table_entry *entry = &hash_table->entries[index];
+	return entry;
 }
 
-bool hash_table_v2_contains(struct hash_table_v2 *table, const char *key) {
-    uint32_t index = hash(key);
-    struct entry *e = table->entries[index];
+static struct list_entry *get_list_entry(struct hash_table_v2 *hash_table,
+                                         const char *key,
+                                         struct list_head *list_head)
+{
+	assert(key != NULL);
 
-    while (e != NULL) {
-        pthread_mutex_lock(&e->mutex); // Lock current entry
-        if (strcmp(e->key, key) == 0) {
-            pthread_mutex_unlock(&e->mutex); // Unlock before returning
-            return true; // Found the key
-        }
-        pthread_mutex_unlock(&e->mutex); // Unlock before moving to next entry
-        e = e->next;
-    }
-    return false; // Key not found
+	struct list_entry *entry = NULL;
+	
+	SLIST_FOREACH(entry, list_head, pointers) {
+	  if (strcmp(entry->key, key) == 0) {
+	    return entry;
+	  }
+	}
+	return NULL;
 }
 
-uint32_t hash_table_v2_get(struct hash_table_v2 *table, const char *key) {
-    uint32_t index = hash(key);
-    struct entry *e = table->entries[index];
-
-    while (e != NULL) {
-        pthread_mutex_lock(&e->mutex); // Lock current entry
-        if (strcmp(e->key, key) == 0) {
-            uint32_t value = e->value;
-            pthread_mutex_unlock(&e->mutex); // Unlock before returning
-            return value; // Return the found value
-        }
-        pthread_mutex_unlock(&e->mutex); // Unlock before moving to next entry
-        e = e->next;
-    }
-
-    assert(0); // Key should exist
+bool hash_table_v2_contains(struct hash_table_v2 *hash_table,
+                            const char *key)
+{
+	struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
+	struct list_head *list_head = &hash_table_entry->list_head;
+	struct list_entry *list_entry = get_list_entry(hash_table, key, list_head);
+	return list_entry != NULL;
 }
 
-void hash_table_v2_destroy(struct hash_table_v2 *table) {
-    for (int i = 0; i < HASH_TABLE_CAPACITY; i++) {
-        struct entry *e = table->entries[i];
-        while (e != NULL) {
-            pthread_mutex_lock(&e->mutex); // Lock current entry
-            struct entry *next = e->next;
-            pthread_mutex_unlock(&e->mutex); // Unlock before freeing
+// Modify hash_table_v2_add_entry to use the mutex for each entry for thread safety
+void hash_table_v2_add_entry(struct hash_table_v2 *hash_table,
+                             const char *key,
+                             uint32_t value) {
+    struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
 
-            pthread_mutex_destroy(&e->mutex); // Destroy entry mutex
-            free((void*)e->key); // Free duplicated key
-            free(e);
-            e = next;
-        }
+    pthread_mutex_lock(&hash_table_entry->mutex); // Lock the entry
+
+	struct list_head *list_head = &hash_table_entry->list_head;
+	struct list_entry *list_entry = get_list_entry(hash_table, key, list_head);
+
+	/* Update the value if it already exists */
+	if (list_entry != NULL) {
+		list_entry->value = value;
+		return;
+	}
+
+	list_entry = calloc(1, sizeof(struct list_entry));
+	list_entry->key = key;
+	list_entry->value = value;
+	SLIST_INSERT_HEAD(list_head, list_entry, pointers);
+    
+    pthread_mutex_unlock(&hash_table_entry->mutex); // Unlock the entry
+}
+
+uint32_t hash_table_v2_get_value(struct hash_table_v2 *hash_table,
+                                 const char *key)
+{
+	struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
+	struct list_head *list_head = &hash_table_entry->list_head;
+	struct list_entry *list_entry = get_list_entry(hash_table, key, list_head);
+	assert(list_entry != NULL);
+	return list_entry->value;
+}
+
+// Modify hash_table_v2_destroy to destroy the mutex for each entry
+void hash_table_v2_destroy(struct hash_table_v2 *hash_table) {
+    for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
+        struct hash_table_entry *entry = &hash_table->entries[i];
+
+		struct list_head *list_head = &entry->list_head;
+		struct list_entry *list_entry = NULL;
+		while (!SLIST_EMPTY(list_head)) {
+			list_entry = SLIST_FIRST(list_head);
+			SLIST_REMOVE_HEAD(list_head, pointers);
+			free(list_entry);
+		}
+        
+        pthread_mutex_destroy(&entry->mutex); // Destroy the mutex for each entry
     }
-    free(table);
+    free(hash_table);
 }
