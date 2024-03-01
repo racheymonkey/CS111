@@ -35,6 +35,7 @@ struct hash_table_v2 *hash_table_v2_create() {
         SLIST_INIT(&hash_table->entries[i].list_head);
         int ret = pthread_mutex_init(&hash_table->entries[i].mutex, NULL);
         if (ret != 0) {
+            // Destroy previously initialized mutexes in case of error
             for (size_t j = 0; j < i; ++j) {
                 pthread_mutex_destroy(&hash_table->entries[j].mutex);
             }
@@ -67,6 +68,16 @@ static struct hash_table_entry *get_hash_table_entry(struct hash_table_v2 *hash_
     return &hash_table->entries[index];
 }
 
+static struct list_entry *find_list_entry(struct hash_table_entry *entry, const char *key) {
+    struct list_entry *le = NULL;
+    SLIST_FOREACH(le, &entry->list_head, pointers) {
+        if (strcmp(le->key, key) == 0) {
+            return le;
+        }
+    }
+    return NULL;
+}
+
 void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key, uint32_t value) {
     struct hash_table_entry *entry = get_hash_table_entry(hash_table, key);
 
@@ -77,12 +88,12 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key, 
         exit(lock_ret);
     }
 
-    struct list_entry *list_entry = get_hash_table_entry(hash_table, key, &entry->list_head);
+    struct list_entry *list_entry = find_list_entry(entry, key);
     if (list_entry == NULL) {
         list_entry = malloc(sizeof(struct list_entry));
         if (list_entry == NULL) {
             fprintf(stderr, "Failed to allocate memory for new list entry\n");
-            pthread_mutex_unlock(&entry->mutex); // Error handling omitted for brevity
+            pthread_mutex_unlock(&entry->mutex); // Assuming this call succeeds, given context
             hash_table_v2_destroy(hash_table);
             exit(EXIT_FAILURE);
         }
@@ -90,7 +101,7 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key, 
         if (dup_key == NULL) {
             free(list_entry);
             fprintf(stderr, "Failed to duplicate key\n");
-            pthread_mutex_unlock(&entry->mutex); // Error handling omitted for brevity
+            pthread_mutex_unlock(&entry->mutex); // Assuming this call succeeds, given context
             hash_table_v2_destroy(hash_table);
             exit(EXIT_FAILURE);
         }
@@ -109,16 +120,6 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key, 
     }
 }
 
-static struct list_entry *get_hash_table_entry(struct hash_table_v2 *hash_table, const char *key, struct list_head *list_head) {
-    struct list_entry *entry = NULL;
-    SLIST_FOREACH(entry, list_head, pointers) {
-        if (strcmp(entry->key, key) == 0) {
-            return entry;
-        }
-    }
-    return NULL;
-}
-
 bool hash_table_v2_contains(struct hash_table_v2 *hash_table, const char *key) {
     struct hash_table_entry *entry = get_hash_table_entry(hash_table, key);
     int lock_ret = pthread_mutex_lock(&entry->mutex);
@@ -128,7 +129,7 @@ bool hash_table_v2_contains(struct hash_table_v2 *hash_table, const char *key) {
         exit(lock_ret);
     }
 
-    bool exists = get_hash_table_entry(hash_table, key, &entry->list_head) != NULL;
+    bool exists = find_list_entry(entry, key) != NULL;
 
     lock_ret = pthread_mutex_unlock(&entry->mutex);
     if (lock_ret != 0) {
@@ -149,8 +150,10 @@ uint32_t hash_table_v2_get_value(struct hash_table_v2 *hash_table, const char *k
         exit(lock_ret);
     }
 
-    struct list_entry *list_entry = get_hash_table_entry(hash_table, key, &entry->list_head);
-    assert(list_entry != NULL); // This is a strong assumption; in production, handle more gracefully
+    struct list_entry *list_entry = find_list_entry(entry, key);
+    assert(list_entry != NULL); // In production, handle this more gracefully
+
+    uint32_t value = list_entry->value;
 
     lock_ret = pthread_mutex_unlock(&entry->mutex);
     if (lock_ret != 0) {
@@ -159,5 +162,5 @@ uint32_t hash_table_v2_get_value(struct hash_table_v2 *hash_table, const char *k
         exit(lock_ret);
     }
 
-    return list_entry->value;
+    return value;
 }
