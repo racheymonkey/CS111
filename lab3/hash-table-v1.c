@@ -114,9 +114,8 @@ void hash_table_v1_destroy(struct hash_table_v1 *hash_table) {
     for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
         struct list_head *list_head = &hash_table->entries[i].list_head;
         struct list_entry *entry;
-        struct list_entry *temp_entry;
-
-        SLIST_FOREACH(entry, list_head, pointers, temp_entry) {
+        
+        SLIST_FOREACH(entry, list_head, pointers) {
             SLIST_REMOVE(list_head, entry, list_entry, pointers);
             free((void*)entry->key); // Cast to void* to match free's signature
             free(entry);
