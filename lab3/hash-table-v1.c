@@ -27,9 +27,11 @@ struct hash_table_v1 {
 struct hash_table_v1 *hash_table_v1_create() {
     struct hash_table_v1 *hash_table = calloc(1, sizeof(struct hash_table_v1));
     assert(hash_table != NULL);
-    if (pthread_mutex_init(&hash_table->mutex, NULL) != 0) {
+    int ret = pthread_mutex_init(&hash_table->mutex, NULL);
+    if (ret != 0) {
         free(hash_table);
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "Error initializing mutex: %d\n", ret);
+        exit(ret);
     }
     for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
         SLIST_INIT(&hash_table->entries[i].list_head);
@@ -54,63 +56,98 @@ static struct list_entry *get_list_entry(struct hash_table_v1 *hash_table, const
 }
 
 bool hash_table_v1_contains(struct hash_table_v1 *hash_table, const char *key) {
-    pthread_mutex_lock(&hash_table->mutex);
+    int lock_ret = pthread_mutex_lock(&hash_table->mutex);
+    if (lock_ret != 0) {
+        fprintf(stderr, "Error locking mutex: %d\n", lock_ret);
+        exit(lock_ret);
+    }
     struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
     struct list_entry *list_entry = get_list_entry(hash_table, key, &hash_table_entry->list_head);
-    pthread_mutex_unlock(&hash_table->mutex);
+    lock_ret = pthread_mutex_unlock(&hash_table->mutex);
+    if (lock_ret != 0) {
+        fprintf(stderr, "Error unlocking mutex: %d\n", lock_ret);
+        exit(lock_ret);
+    }
     return list_entry != NULL;
 }
 
-// Modify hash_table_v1_add_entry to use the mutex for thread safety
 void hash_table_v1_add_entry(struct hash_table_v1 *hash_table, const char *key, uint32_t value) {
-    // Allocate memory for the new entry outside the critical section
     struct list_entry *new_entry = calloc(1, sizeof(struct list_entry));
     if (new_entry == NULL) {
+        fprintf(stderr, "Failed to allocate memory for new entry\n");
         exit(EXIT_FAILURE);
     }
     char *dup_key = strdup(key);
     if (dup_key == NULL) {
         free(new_entry);
+        fprintf(stderr, "Failed to duplicate key\n");
         exit(EXIT_FAILURE);
     }
 
-    pthread_mutex_lock(&hash_table->mutex);
+    int lock_ret = pthread_mutex_lock(&hash_table->mutex);
+    if (lock_ret != 0) {
+        free(dup_key);
+        free(new_entry);
+        fprintf(stderr, "Error locking mutex: %d\n", lock_ret);
+        exit(lock_ret);
+    }
+
     struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
     struct list_entry *list_entry = get_list_entry(hash_table, key, &hash_table_entry->list_head);
 
     if (list_entry == NULL) {
-        new_entry->key = dup_key; // Assign the duplicated key to the new entry
+        new_entry->key = dup_key;
         new_entry->value = value;
         SLIST_INSERT_HEAD(&hash_table_entry->list_head, new_entry, pointers);
     } else {
-        // If the entry exists, update the value and free the newly allocated memory
         list_entry->value = value;
         free(dup_key);
         free(new_entry);
     }
-    pthread_mutex_unlock(&hash_table->mutex);
+
+    lock_ret = pthread_mutex_unlock(&hash_table->mutex);
+    if (lock_ret != 0) {
+        fprintf(stderr, "Error unlocking mutex: %d\n", lock_ret);
+        exit(lock_ret);
+    }
 }
 
 uint32_t hash_table_v1_get_value(struct hash_table_v1 *hash_table, const char *key) {
-    pthread_mutex_lock(&hash_table->mutex);
+    int lock_ret = pthread_mutex_lock(&hash_table->mutex);
+    if (lock_ret != 0) {
+        fprintf(stderr, "Error locking mutex: %d\n", lock_ret);
+        exit(lock_ret);
+    }
+
     struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
     struct list_entry *list_entry = get_list_entry(hash_table, key, &hash_table_entry->list_head);
-    pthread_mutex_unlock(&hash_table->mutex);
+    
+    lock_ret = pthread_mutex_unlock(&hash_table->mutex);
+    if (lock_ret != 0) {
+        fprintf(stderr, "Error unlocking mutex: %d\n", lock_ret);
+        exit(lock_ret);
+    }
+
     assert(list_entry != NULL);
     return list_entry->value;
 }
 
 void hash_table_v1_destroy(struct hash_table_v1 *hash_table) {
-    pthread_mutex_destroy(&hash_table->mutex);
     for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
         struct list_head *list_head = &hash_table->entries[i].list_head;
         struct list_entry *entry;
         while (!SLIST_EMPTY(list_head)) {
             entry = SLIST_FIRST(list_head);
             SLIST_REMOVE_HEAD(list_head, pointers);
-            free((void*)entry->key); // Assume keys are dynamically allocated
+            free((void*)entry->key);
             free(entry);
         }
+    }
+
+    int ret = pthread_mutex_destroy(&hash_table->mutex);
+    if (ret != 0) {
+        fprintf(stderr, "Error destroying mutex: %d\n", ret);
+        // Not exiting here since it's destructor and we're already cleaning up
     }
     free(hash_table);
 }
