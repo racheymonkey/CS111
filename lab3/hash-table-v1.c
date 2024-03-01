@@ -147,7 +147,6 @@ void hash_table_v1_destroy(struct hash_table_v1 *hash_table) {
     int ret = pthread_mutex_destroy(&hash_table->mutex);
     if (ret != 0) {
         fprintf(stderr, "Error destroying mutex: %d\n", ret);
-        // Not exiting here since it's destructor and we're already cleaning up
     }
     free(hash_table);
 }
