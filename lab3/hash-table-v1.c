@@ -127,5 +127,7 @@ void hash_table_v1_destroy(struct hash_table_v1 *hash_table) {
 			SLIST_REMOVE_HEAD(list_head, pointers);
 			free(list_entry);
 		}
+		pthread_mutex_destroy(&entry->mutex); // Destroy the mutex for each entry
 	}
+	free(hash_table);
 }
