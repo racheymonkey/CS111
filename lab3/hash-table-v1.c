@@ -1,10 +1,12 @@
 #include "hash-table-base.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <sys/queue.h>
+
 #include <errno.h>
 
 struct list_entry {
@@ -24,10 +26,8 @@ struct hash_table_v1 {
     pthread_mutex_t mutex; // Single mutex for v1
 };
 
-// Function prototypes
 void hash_table_v1_destroy(struct hash_table_v1 *hash_table);
 
-// Initialize the mutex for v1
 struct hash_table_v1 *hash_table_v1_create() {
     struct hash_table_v1 *hash_table = calloc(1, sizeof(struct hash_table_v1));
     if (hash_table == NULL) {
@@ -35,7 +35,7 @@ struct hash_table_v1 *hash_table_v1_create() {
         exit(errno);
     }
 
-    int mutex_init_result = pthread_mutex_init(&hash_table->mutex, NULL);
+    int mutex_init_result = pthread_mutex_init(&hash_table->mutex, NULL); // Initialize the single mutex
     if (mutex_init_result != 0) {
         fprintf(stderr, "Failed to initialize mutex: %s\n", strerror(mutex_init_result));
         hash_table_v1_destroy(hash_table); // Cleanup before exiting
@@ -48,7 +48,7 @@ struct hash_table_v1 *hash_table_v1_create() {
     return hash_table;
 }
 
-// Cleanup function to destroy mutex and free hash table
+// Modify hash_table_v1_destroy to destroy the mutex
 void hash_table_v1_destroy(struct hash_table_v1 *hash_table) {
     int mutex_destroy_result = pthread_mutex_destroy(&hash_table->mutex);
     if (mutex_destroy_result != 0) {
@@ -103,7 +103,7 @@ void hash_table_v1_add_entry(struct hash_table_v1 *hash_table, const char *key, 
         exit(errno);
     }
 
-    int lock_result = pthread_mutex_lock(&hash_table->mutex);
+    int lock_result = pthread_mutex_lock(&hash_table->mutex); // Lock the entire hash table
     if (lock_result != 0) {
         fprintf(stderr, "Failed to lock mutex: %s\n", strerror(lock_result));
         free(dup_key);
@@ -113,6 +113,7 @@ void hash_table_v1_add_entry(struct hash_table_v1 *hash_table, const char *key, 
     struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
     struct list_entry *list_entry = get_list_entry(hash_table, key, &hash_table_entry->list_head);
 
+    /* Update the value if it already exists */
     if (list_entry == NULL) {
         new_entry->key = dup_key;
         new_entry->value = value;
@@ -122,7 +123,7 @@ void hash_table_v1_add_entry(struct hash_table_v1 *hash_table, const char *key, 
         free(dup_key);
         free(new_entry);
     }
-    int unlock_result = pthread_mutex_unlock(&hash_table->mutex);
+    int unlock_result = pthread_mutex_unlock(&hash_table->mutex); // Unlock the entire hash table
     if (unlock_result != 0) {
         fprintf(stderr, "Failed to unlock mutex: %s\n", strerror(unlock_result));
         exit(unlock_result);
