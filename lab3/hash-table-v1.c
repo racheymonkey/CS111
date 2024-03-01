@@ -115,19 +115,20 @@ uint32_t hash_table_v1_get_value(struct hash_table_v1 *hash_table,
 	return list_entry->value;
 }
 
-// Modify hash_table_v1_destroy to destroy the mutex
 void hash_table_v1_destroy(struct hash_table_v1 *hash_table) {
-	pthread_mutex_destroy(&hash_table->mutex); // Destroy the mutex
-	for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
-		struct hash_table_entry *entry = &hash_table->entries[i];
-		struct list_head *list_head = &entry->list_head;
-		struct list_entry *list_entry = NULL;
-		while (!SLIST_EMPTY(list_head)) {
-			list_entry = SLIST_FIRST(list_head);
-			SLIST_REMOVE_HEAD(list_head, pointers);
-			free(list_entry);
-		}
-		pthread_mutex_destroy(&entry->mutex); // Destroy the mutex for each entry
-	}
-	free(hash_table);
+    if (pthread_mutex_destroy(&hash_table->mutex) != 0) {
+        fprintf(stderr, "Failed to destroy hash table mutex.\n");
+        exit(EXIT_FAILURE); // Or handle error as appropriate
+    }
+    for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
+        struct hash_table_entry *entry = &hash_table->entries[i];
+        struct list_head *list_head = &entry->list_head;
+        struct list_entry *list_entry;
+        while (!SLIST_EMPTY(list_head)) {
+            list_entry = SLIST_FIRST(list_head);
+            SLIST_REMOVE_HEAD(list_head, pointers);
+            free(list_entry);
+        }
+    }
+    free(hash_table);
 }
