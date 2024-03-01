@@ -81,6 +81,7 @@ static struct list_entry *find_list_entry(struct hash_table_entry *entry, const 
 void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key, uint32_t value) {
     struct hash_table_entry *entry = get_hash_table_entry(hash_table, key);
 
+    // Attempt to lock the mutex for the hash table entry
     int lock_ret = pthread_mutex_lock(&entry->mutex);
     if (lock_ret != 0) {
         fprintf(stderr, "Error locking mutex: %d\n", lock_ret);
@@ -88,36 +89,41 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key, 
         exit(lock_ret);
     }
 
+    // Find or create a new list entry for the given key
     struct list_entry *list_entry = find_list_entry(entry, key);
-    if (list_entry == NULL) {
+    if (list_entry == NULL) { // Key not found, create a new list entry
         list_entry = malloc(sizeof(struct list_entry));
         if (list_entry == NULL) {
             fprintf(stderr, "Failed to allocate memory for new list entry\n");
-            pthread_mutex_unlock(&entry->mutex); // Assuming this call succeeds, given context
-            hash_table_v2_destroy(hash_table);
-            exit(EXIT_FAILURE);
+            goto unlock_and_exit;
         }
         char *dup_key = strdup(key);
         if (dup_key == NULL) {
             free(list_entry);
             fprintf(stderr, "Failed to duplicate key\n");
-            pthread_mutex_unlock(&entry->mutex); // Assuming this call succeeds, given context
-            hash_table_v2_destroy(hash_table);
-            exit(EXIT_FAILURE);
+            goto unlock_and_exit;
         }
         list_entry->key = dup_key;
         list_entry->value = value;
         SLIST_INSERT_HEAD(&entry->list_head, list_entry, pointers);
-    } else {
+    } else { // Key found, update the value
         list_entry->value = value;
     }
 
+    // Attempt to unlock the mutex for the hash table entry
     lock_ret = pthread_mutex_unlock(&entry->mutex);
     if (lock_ret != 0) {
         fprintf(stderr, "Error unlocking mutex: %d\n", lock_ret);
         hash_table_v2_destroy(hash_table);
         exit(lock_ret);
     }
+    return;
+
+unlock_and_exit:
+    // Unlock the mutex before exiting due to an error
+    pthread_mutex_unlock(&entry->mutex); // Handle the error of unlocking in a real scenario
+    hash_table_v2_destroy(hash_table);
+    exit(EXIT_FAILURE);
 }
 
 bool hash_table_v2_contains(struct hash_table_v2 *hash_table, const char *key) {
