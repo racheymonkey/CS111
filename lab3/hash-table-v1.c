@@ -1,6 +1,7 @@
 #include "hash-table-base.h"
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/queue.h>
@@ -24,14 +25,18 @@ struct hash_table_v1 {
     pthread_mutex_t mutex; // Single mutex for v1
 };
 
-// Modify hash_table_v1_create to initialize the mutex
+// Modify hash_table_v1_create to initialize the mutex with error checking
 struct hash_table_v1 *hash_table_v1_create() {
     struct hash_table_v1 *hash_table = calloc(1, sizeof(struct hash_table_v1));
     assert(hash_table != NULL);
-    pthread_mutex_init(&hash_table->mutex, NULL); // Initialize the single mutex
+    if (pthread_mutex_init(&hash_table->mutex, NULL) != 0) {
+        free(hash_table); // Clean up allocated memory to avoid leaks
+        exit(EXIT_FAILURE);
+    }
     for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
-		struct hash_table_entry *entry = &hash_table->entries[i];
-		SLIST_INIT(&entry->list_head);    }
+        struct hash_table_entry *entry = &hash_table->entries[i];
+        SLIST_INIT(&entry->list_head);
+    }
     return hash_table;
 }
 
@@ -73,7 +78,10 @@ bool hash_table_v1_contains(struct hash_table_v1 *hash_table,
 void hash_table_v1_add_entry(struct hash_table_v1 *hash_table,
                              const char *key,
                              uint32_t value) {
-    	pthread_mutex_lock(&hash_table->mutex); // Lock the entire hash table
+	
+	if (pthread_mutex_lock(&hash_table->mutex) != 0) {
+	        exit(EXIT_FAILURE);
+	}
 
 	struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
 	struct list_head *list_head = &hash_table_entry->list_head;
@@ -81,8 +89,10 @@ void hash_table_v1_add_entry(struct hash_table_v1 *hash_table,
 
 	if (list_entry != NULL) {
 		list_entry->value = value;
-		pthread_mutex_unlock(&hash_table->mutex); // Unlock the mutex before returning
-	        return;
+		if (pthread_mutex_unlock(&hash_table->mutex) != 0) {
+		        exit(EXIT_FAILURE);
+		}
+		return;
 	}
 
 	list_entry = calloc(1, sizeof(struct list_entry));
@@ -90,7 +100,9 @@ void hash_table_v1_add_entry(struct hash_table_v1 *hash_table,
 	list_entry->value = value;
 	SLIST_INSERT_HEAD(list_head, list_entry, pointers);
     
-    pthread_mutex_unlock(&hash_table->mutex); // Unlock the entire hash table
+	if (pthread_mutex_unlock(&hash_table->mutex) != 0) {
+	        exit(EXIT_FAILURE);
+	}
 }
 
 uint32_t hash_table_v1_get_value(struct hash_table_v1 *hash_table,
