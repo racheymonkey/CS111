@@ -1,11 +1,13 @@
 #include "hash-table-base.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
 #include <sys/queue.h>
 #include <errno.h>
+
+#include <pthread.h>
 
 struct list_entry {
     const char *key;
