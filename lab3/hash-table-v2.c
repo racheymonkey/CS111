@@ -77,7 +77,7 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key, 
         exit(lock_ret);
     }
 
-    struct list_entry *list_entry = get_list_entry(hash_table, key, &entry->list_head);
+    struct list_entry *list_entry = get_hash_table_entry(hash_table, key, &entry->list_head);
     if (list_entry == NULL) {
         list_entry = malloc(sizeof(struct list_entry));
         if (list_entry == NULL) {
@@ -109,7 +109,7 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key, 
     }
 }
 
-static struct list_entry *get_list_entry(struct hash_table_v2 *hash_table, const char *key, struct list_head *list_head) {
+static struct list_entry *get_hash_table_entry(struct hash_table_v2 *hash_table, const char *key, struct list_head *list_head) {
     struct list_entry *entry = NULL;
     SLIST_FOREACH(entry, list_head, pointers) {
         if (strcmp(entry->key, key) == 0) {
@@ -128,7 +128,7 @@ bool hash_table_v2_contains(struct hash_table_v2 *hash_table, const char *key) {
         exit(lock_ret);
     }
 
-    bool exists = get_list_entry(hash_table, key, &entry->list_head) != NULL;
+    bool exists = get_hash_table_entry(hash_table, key, &entry->list_head) != NULL;
 
     lock_ret = pthread_mutex_unlock(&entry->mutex);
     if (lock_ret != 0) {
@@ -149,7 +149,7 @@ uint32_t hash_table_v2_get_value(struct hash_table_v2 *hash_table, const char *k
         exit(lock_ret);
     }
 
-    struct list_entry *list_entry = get_list_entry(hash_table, key, &entry->list_head);
+    struct list_entry *list_entry = get_hash_table_entry(hash_table, key, &entry->list_head);
     assert(list_entry != NULL); // This is a strong assumption; in production, handle more gracefully
 
     lock_ret = pthread_mutex_unlock(&entry->mutex);
