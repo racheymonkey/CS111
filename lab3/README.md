@@ -21,11 +21,17 @@ This command will run the tester with 8 threads and 50000 hash table entries per
 The tester will display the execution time for each hash table implementation, along with any missing entries. When I ran this code on my terminal, I got the following:
 
 Generation: 72,722 usec
+
 Hash table base: 1,701,029 usec
+
 0 missing
+
 Hash table v1: 2,470,028 usec
+
 0 missing
+
 Hash table v2: 1,142,474 usec
+
 0 missing
 
 ## First Implementation: Version 1 (v1)
@@ -45,11 +51,17 @@ The mutex is initialized at the creation of the hash table and is locked before 
 As shown ealier in the results of the command:
 
 Generation: 72,722 usec
+
 Hash table base: 1,701,029 usec
+
 0 missing
+
 Hash table v1: 2,470,028 usec
+
 0 missing
+
 Hash table v2: 1,142,474 usec
+
 0 missing
 
 This aligns with the expected program behavior. Version 1 might exhibit slightly slower performance compared to the base implementation due to the overhead of thread synchronization. This overhead primarily stems from the creation and management of mutex locks.
@@ -71,11 +83,17 @@ Multiple mutexes are created and associated with different sections of the hash 
 As shown ealier in the results of the command:
 
 Generation: 72,722 usec
+
 Hash table base: 1,701,029 usec
+
 0 missing
+
 Hash table v1: 2,470,028 usec
+
 0 missing
+
 Hash table v2: 1,142,474 usec
+
 0 missing
 
 Version 2 demonstrates significant performance improvement compared to the base implementation, achieving a notable speedup. This enhancement is attributed to the optimized locking strategy, which minimizes thread contention and maximizes parallelism.
