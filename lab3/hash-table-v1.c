@@ -1,12 +1,10 @@
 #include "hash-table-base.h"
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/queue.h>
-
 #include <pthread.h>
+#include <sys/queue.h>
 
 struct list_entry {
     const char *key;
@@ -18,23 +16,27 @@ SLIST_HEAD(list_head, list_entry);
 
 struct hash_table_entry {
     struct list_head list_head;
+    pthread_mutex_t mutex; // Mutex for each entry in v2
 };
 
-struct hash_table_v1 {
+struct hash_table_v2 {
     struct hash_table_entry entries[HASH_TABLE_CAPACITY];
-    pthread_mutex_t mutex; // Single mutex for v1
 };
 
-// Initialize the mutex with error checking
-struct hash_table_v1 *hash_table_v1_create() {
-    struct hash_table_v1 *hash_table = calloc(1, sizeof(struct hash_table_v1));
+// Initialize mutexes for each hash table entry
+struct hash_table_v2 *hash_table_v2_create() {
+    struct hash_table_v2 *hash_table = calloc(1, sizeof(struct hash_table_v2));
     assert(hash_table != NULL);
-    if (pthread_mutex_init(&hash_table->mutex, NULL) != 0) {
-        free(hash_table); // Clean up allocated memory to avoid leaks
-        exit(EXIT_FAILURE);
-    }
     for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
         SLIST_INIT(&hash_table->entries[i].list_head);
+        if (pthread_mutex_init(&hash_table->entries[i].mutex, NULL) != 0) {
+            // Properly handle error and clean-up
+            for (size_t j = 0; j < i; j++) {
+                pthread_mutex_destroy(&hash_table->entries[j].mutex);
+            }
+            free(hash_table);
+            exit(EXIT_FAILURE);
+        }
     }
     return hash_table;
 }
@@ -93,17 +95,15 @@ uint32_t hash_table_v1_get_value(struct hash_table_v1 *hash_table, const char *k
     return list_entry->value;
 }
 
-void hash_table_v1_destroy(struct hash_table_v1 *hash_table) {
-    if (pthread_mutex_destroy(&hash_table->mutex) != 0) {
-        fprintf(stderr, "Failed to destroy hash table mutex.\n");
-        exit(EXIT_FAILURE);
-    }
+void hash_table_v2_destroy(struct hash_table_v2 *hash_table) {
     for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
+        pthread_mutex_destroy(&hash_table->entries[i].mutex);
         struct list_head *list_head = &hash_table->entries[i].list_head;
         struct list_entry *entry;
         while (!SLIST_EMPTY(list_head)) {
             entry = SLIST_FIRST(list_head);
             SLIST_REMOVE_HEAD(list_head, pointers);
+            free((void*)entry->key); // Free the duplicated key
             free(entry);
         }
     }
