@@ -22,11 +22,11 @@ The tester will display the execution time for each hash table implementation, a
 
 Generation: 72,722 usec
 Hash table base: 1,701,029 usec
-  - 0 missing
+0 missing
 Hash table v1: 2,470,028 usec
-  - 0 missing
+0 missing
 Hash table v2: 1,142,474 usec
-  - 0 missing
+0 missing
 
 ## First Implementation: Version 1 (v1)
 
@@ -46,11 +46,11 @@ As shown ealier in the results of the command:
 
 Generation: 72,722 usec
 Hash table base: 1,701,029 usec
-  - 0 missing
+0 missing
 Hash table v1: 2,470,028 usec
-  - 0 missing
+0 missing
 Hash table v2: 1,142,474 usec
-  - 0 missing
+0 missing
 
 This aligns with the expected program behavior. Version 1 might exhibit slightly slower performance compared to the base implementation due to the overhead of thread synchronization. This overhead primarily stems from the creation and management of mutex locks.
 
@@ -72,11 +72,11 @@ As shown ealier in the results of the command:
 
 Generation: 72,722 usec
 Hash table base: 1,701,029 usec
-  - 0 missing
+0 missing
 Hash table v1: 2,470,028 usec
-  - 0 missing
+0 missing
 Hash table v2: 1,142,474 usec
-  - 0 missing
+0 missing
 
 Version 2 demonstrates significant performance improvement compared to the base implementation, achieving a notable speedup. This enhancement is attributed to the optimized locking strategy, which minimizes thread contention and maximizes parallelism.
 
