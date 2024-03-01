@@ -116,7 +116,7 @@ void hash_table_v1_destroy(struct hash_table_v1 *hash_table) {
         struct list_entry *entry;
         struct list_entry *temp_entry;
 
-        SLIST_FOREACH_SAFE(entry, list_head, pointers, temp_entry) {
+        SLIST_FOREACH(entry, list_head, pointers, temp_entry) {
             SLIST_REMOVE(list_head, entry, list_entry, pointers);
             free((void*)entry->key); // Cast to void* to match free's signature
             free(entry);
