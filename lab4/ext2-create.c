@@ -371,7 +371,7 @@ void write_inode_table(int fd) {
     	hello_world_inode.i_dtime = 0;
     	hello_world_inode.i_gid = 1000;  // Typically the GID for the first normal user
     	hello_world_inode.i_links_count = 1;
-    	hello_world_inode.i_blocks = 2;  // Number of 512-byte blocks reserved for this file
+    	hello_world_inode.i_blocks = BLOCK_SIZE / 512;  // Number of 512-byte blocks reserved for this file
     	hello_world_inode.i_block[0] = HELLO_WORLD_FILE_BLOCKNO;
     	write_inode(fd, HELLO_WORLD_INO, &hello_world_inode);
 
