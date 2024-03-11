@@ -400,42 +400,35 @@ void write_root_dir_block(int fd) {
         errno_exit("lseek");
     }
 
-    struct ext2_dir_entry dot_entry = {0};
-    struct ext2_dir_entry dotdot_entry = {0};
-    struct ext2_dir_entry lost_found_entry = {0};
-    struct ext2_dir_entry hello_world_entry = {0};
-    struct ext2_dir_entry hello_entry = {0};
+    struct ext2_dir_entry entries[5]; // Array to hold all directory entries
+    memset(&entries, 0, sizeof(entries)); // Initialize all entries to zero
 
-    // Existing entries for ".", "..", and "lost+found"
-    dir_entry_set(dot_entry, EXT2_ROOT_INO, ".");
-    dir_entry_set(dotdot_entry, EXT2_ROOT_INO, "..");
-    dir_entry_set(lost_found_entry, LOST_AND_FOUND_INO, "lost+found");
+    // Directory entry for "."
+    dir_entry_set(entries[0], EXT2_ROOT_INO, ".");
+    entries[0].rec_len = sizeof(struct ext2_dir_entry);
 
-    // New entry for "hello-world" file
-    dir_entry_set(hello_world_entry, HELLO_WORLD_INO, "hello-world");
+    // Directory entry for ".."
+    dir_entry_set(entries[1], EXT2_ROOT_INO, "..");
+    entries[1].rec_len = sizeof(struct ext2_dir_entry);
 
-    // New entry for "hello" symlink
-    dir_entry_set(hello_entry, HELLO_INO, "hello");
+    // Directory entry for "lost+found"
+    dir_entry_set(entries[2], LOST_AND_FOUND_INO, "lost+found");
+    entries[2].rec_len = sizeof(struct ext2_dir_entry);
 
-    // Calculate the record lengths, ensuring they do not exceed the 16-bit limit
-    u16 base_rec_len = sizeof(struct ext2_dir_entry);
-    dot_entry.rec_len = base_rec_len;
-    dotdot_entry.rec_len = base_rec_len;
-    lost_found_entry.rec_len = base_rec_len;
-    hello_world_entry.rec_len = base_rec_len;
+    // Directory entry for "hello-world"
+    dir_entry_set(entries[3], HELLO_WORLD_INO, "hello-world");
+    entries[3].rec_len = sizeof(struct ext2_dir_entry);
 
-    // Calculate remaining space for the last entry, ensuring proper alignment
-    u16 used_space = 4 * base_rec_len;
-    u16 remaining_space = BLOCK_SIZE - used_space;
-    // Ensure the last rec_len does not exceed 16-bit limit and is aligned to 4 bytes
-    hello_entry.rec_len = (remaining_space < 65536) ? remaining_space : base_rec_len;
+    // Directory entry for "hello" symlink
+    dir_entry_set(entries[4], HELLO_INO, "hello");
+    entries[4].rec_len = BLOCK_SIZE - (4 * sizeof(struct ext2_dir_entry)); // Use the rest of the block
 
-    // Write directory entries to the filesystem image
-    dir_entry_write(dot_entry, fd);
-    dir_entry_write(dotdot_entry, fd);
-    dir_entry_write(lost_found_entry, fd);
-    dir_entry_write(hello_world_entry, fd);
-    dir_entry_write(hello_entry, fd);
+    // Write all directory entries to the filesystem image
+    for (int i = 0; i < 5; ++i) {
+        if (write(fd, &entries[i], entries[i].rec_len) != entries[i].rec_len) {
+            errno_exit("write");
+        }
+    }
 }
 
 void write_lost_and_found_dir_block(int fd) {
