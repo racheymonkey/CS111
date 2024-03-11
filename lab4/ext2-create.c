@@ -421,7 +421,18 @@ void write_root_dir_block(int fd) {
 
     // Directory entry for "hello" symlink
     dir_entry_set(entries[4], HELLO_INO, "hello");
-    entries[4].rec_len = BLOCK_SIZE - (4 * sizeof(struct ext2_dir_entry)); // Use the rest of the block
+
+    // Adjust the rec_len of the last entry
+    size_t used_space = 4 * sizeof(struct ext2_dir_entry); // Space used by the first 4 entries
+    size_t remaining_space = BLOCK_SIZE - used_space;
+    remaining_space -= (remaining_space % 4); // Align to the nearest 4-byte boundary
+
+    // Make sure the remaining space doesn't exceed a u16
+    if (remaining_space > 65535) {
+        remaining_space = 65535;
+    }
+
+    entries[4].rec_len = (u16)remaining_space; // Use the rest of the block for the last entry
 
     // Write all directory entries to the filesystem image
     for (int i = 0; i < 5; ++i) {
