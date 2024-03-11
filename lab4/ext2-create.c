@@ -395,31 +395,33 @@ void write_inode_table(int fd) {
 }
 
 void write_root_dir_block(int fd) {
-    	off_t off = lseek(fd, BLOCK_OFFSET(ROOT_DIR_BLOCKNO), SEEK_SET);
-    	if (off == -1) {
-        	errno_exit("lseek");
-    	}
+    off_t off = lseek(fd, BLOCK_OFFSET(ROOT_DIR_BLOCKNO), SEEK_SET);
+    if (off == -1) {
+        errno_exit("lseek");
+    }
 
-    	struct ext2_dir_entry dot_entry = {0};
-    	struct ext2_dir_entry dotdot_entry = {0};
-    	struct ext2_dir_entry lost_found_entry = {0};
+    struct ext2_dir_entry dot_entry = {0}, dotdot_entry = {0}, lost_found_entry = {0}, hello_world_entry = {0}, hello_entry = {0};
 
-    	// Write the '.' directory entry
-    	dir_entry_set(dot_entry, EXT2_ROOT_INO, ".");
-    	dot_entry.rec_len = sizeof(struct ext2_dir_entry);  // Size of this directory entry
-    	dir_entry_write(dot_entry, fd);
+    // Existing entries for ".", "..", and "lost+found"
+    dir_entry_set(dot_entry, EXT2_ROOT_INO, ".");
+    dir_entry_write(dot_entry, fd);
 
-   	 // Write the '..' directory entry (which is also the root for the root directory)
-    	dir_entry_set(dotdot_entry, EXT2_ROOT_INO, "..");
-    	dotdot_entry.rec_len = sizeof(struct ext2_dir_entry);
-    	dir_entry_write(dotdot_entry, fd);
+    dir_entry_set(dotdot_entry, EXT2_ROOT_INO, "..");
+    dir_entry_write(dotdot_entry, fd);
 
-    	// Write the 'lost+found' directory entry
-    	dir_entry_set(lost_found_entry, LOST_AND_FOUND_INO, "lost+found");
-    	lost_found_entry.rec_len = BLOCK_SIZE - (2 * sizeof(struct ext2_dir_entry));  // Use the rest of the block
-    	dir_entry_write(lost_found_entry, fd);
+    dir_entry_set(lost_found_entry, LOST_AND_FOUND_INO, "lost+found");
+    lost_found_entry.rec_len = 12; // Adjust the size to fit new entries
+    dir_entry_write(lost_found_entry, fd);
 
-    	// No need to write fill entries as the rest of the block is already allocated to the lost+found directory
+    // New entry for "hello-world" file
+    dir_entry_set(hello_world_entry, HELLO_WORLD_INO, "hello-world");
+    hello_world_entry.rec_len = 12; // Adjust accordingly
+    dir_entry_write(hello_world_entry, fd);
+
+    // New entry for "hello" symlink
+    dir_entry_set(hello_entry, HELLO_INO, "hello");
+    hello_entry.rec_len = BLOCK_SIZE - (4 * sizeof(struct ext2_dir_entry)); // Use the rest of the block
+    dir_entry_write(hello_entry, fd);
 }
 
 void write_lost_and_found_dir_block(int fd) {
