@@ -377,7 +377,10 @@ void write_inode_table(int fd) {
 
     	// Set up the inode for the hello symlink
     	struct ext2_inode hello_symlink_inode = {0};
-    	hello_symlink_inode.i_mode = EXT2_S_IFLNK | EXT2_S_IRWXU | EXT2_S_IRWXG | EXT2_S_IRWXO;
+	hello_symlink_inode.i_mode = EXT2_S_IFLNK |
+                             EXT2_S_IRUSR | EXT2_S_IWUSR | EXT2_S_IXUSR | // User: read, write, execute
+                             EXT2_S_IRGRP | EXT2_S_IWGRP | EXT2_S_IXGRP | // Group: read, write, execute
+                             EXT2_S_IROTH | EXT2_S_IWOTH | EXT2_S_IXOTH;  // Others: read, write, execute
     	hello_symlink_inode.i_uid = 1000;
     	hello_symlink_inode.i_size = strlen("hello-world");  // Length of the string "hello-world"
     	hello_symlink_inode.i_atime = current_time;
