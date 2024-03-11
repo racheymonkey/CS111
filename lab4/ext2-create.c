@@ -204,12 +204,12 @@ void write_superblock(int fd) {
     	superblock.s_free_blocks_count = NUM_FREE_BLOCKS;
     	superblock.s_free_inodes_count = NUM_FREE_INODES;
     	superblock.s_first_data_block = 1;
-    	superblock.s_log_block_size = 1024; // Block size is 1024 (2^0 * 1024 = 1024)
-    	superblock.s_log_frag_size = 1024;  // Fragment size is 1024 (2^0 * 1024 = 1024)
+    	superblock.s_log_block_size = 0; // Block size is 1024 (2^0 * 1024 = 1024)
+    	superblock.s_log_frag_size = 0;  // Fragment size is 1024 (2^0 * 1024 = 1024)
   	superblock.s_blocks_per_group = NUM_BLOCKS; // For simplicity, all blocks in one group
     	superblock.s_frags_per_group = NUM_BLOCKS;  // For simplicity, all fragments in one group
 	superblock.s_inodes_per_group = NUM_INODES; // For simplicity, all inodes in one group
-    	superblock.s_mtime = 128; // Mount time (not set here)
+    	superblock.s_mtime = current_time; // Mount time (not set here)
     	superblock.s_wtime = current_time; // Write time
     	superblock.s_mnt_count = 0; // Number of times mounted since last consistency check
     	superblock.s_max_mnt_count = -1; // Disable forced filesystem checks based on mount-count
@@ -218,9 +218,9 @@ void write_superblock(int fd) {
     	superblock.s_errors = 1; // Behaviour when detecting errors: Ignore errors
    	superblock.s_minor_rev_level = 0; // Minor revision level
   	superblock.s_lastcheck = current_time; // Last check time
-    	superblock.s_checkinterval = 1; // Max value for check interval - effectively disables it
+    	superblock.s_checkinterval = 86400; // Max value for check interval - effectively disables it
     	superblock.s_creator_os = 0; // Linux
-    	superblock.s_rev_level = 0; // Revision level
+    	superblock.s_rev_level = EXT2_GOOD_OLD_REV; // Revision level
     	superblock.s_def_resuid = 0; // Default uid for reserved blocks
     	superblock.s_def_resgid = 0; // Default gid for reserved blocks
 
@@ -432,7 +432,12 @@ void write_root_dir_block(int fd) {
         remaining_space = 65535;
     }
 
-    entries[4].rec_len = (u16)remaining_space; // Use the rest of the block for the last entry
+	// After setting all directory entries except the last one
+	size_t total_size = 0;
+	for (int i = 0; i < 4; i++) { // Assuming there are 5 entries total, so we loop through the first 4
+	    total_size += entries[i].rec_len;
+	}
+	entries[4].rec_len = BLOCK_SIZE - total_size; // Remaining space for the last entry
 
     // Write all directory entries to the filesystem image
     for (int i = 0; i < 5; ++i) {
@@ -469,21 +474,27 @@ void write_lost_and_found_dir_block(int fd) {
 }
 
 void write_hello_world_file_block(int fd) {
-    	// Calculate the offset to the block where the "hello-world" file's content will be stored.
-    	off_t off = lseek(fd, BLOCK_OFFSET(HELLO_WORLD_FILE_BLOCKNO), SEEK_SET);
-    	if (off == -1) {
-        	errno_exit("lseek");  // If seeking fails, exit with an error message.
-    	}
+    off_t off = lseek(fd, BLOCK_OFFSET(HELLO_WORLD_FILE_BLOCKNO), SEEK_SET);
+    if (off == -1) {
+        errno_exit("lseek");
+    }
 
-    	const char* file_content = "Hello world\n";  // Define the content to be written to the file.
-    	size_t content_length = strlen(file_content);  // Calculate the length of the content.
+    const char* file_content = "Hello world\n";
+    size_t content_length = strlen(file_content);
 
-    	// Write the content to the specified block.
-    	if (write(fd, file_content, content_length) != content_length) {
-        	errno_exit("write");  // If writing fails, exit with an error message.
-    	}
+    if (write(fd, file_content, content_length) != content_length) {
+        errno_exit("write");
+    }
+
+    // Pad the rest of the block with zeros
+    size_t padding_size = BLOCK_SIZE - content_length;
+    char padding[padding_size];
+    memset(padding, 0, padding_size);
+
+    if (write(fd, padding, padding_size) != padding_size) {
+        errno_exit("write");
+    }
 }
-
 
 int main(int argc, char *argv[]) {
 	int fd = open("cs111-base.img", O_CREAT | O_WRONLY, 0666);
