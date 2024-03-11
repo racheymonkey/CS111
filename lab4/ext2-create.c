@@ -203,13 +203,13 @@ void write_superblock(int fd) {
     	superblock.s_r_blocks_count = 0; // Reserved blocks count
     	superblock.s_free_blocks_count = NUM_FREE_BLOCKS;
     	superblock.s_free_inodes_count = NUM_FREE_INODES;
-    	superblock.s_first_data_block = SUPERBLOCK_BLOCKNO;
-    	superblock.s_log_block_size = 0; // Block size is 1024 (2^0 * 1024 = 1024)
-    	superblock.s_log_frag_size = 0;  // Fragment size is 1024 (2^0 * 1024 = 1024)
+    	superblock.s_first_data_block = 1;
+    	superblock.s_log_block_size = 1024; // Block size is 1024 (2^0 * 1024 = 1024)
+    	superblock.s_log_frag_size = 1024;  // Fragment size is 1024 (2^0 * 1024 = 1024)
   	superblock.s_blocks_per_group = NUM_BLOCKS; // For simplicity, all blocks in one group
     	superblock.s_frags_per_group = NUM_BLOCKS;  // For simplicity, all fragments in one group
 	superblock.s_inodes_per_group = NUM_INODES; // For simplicity, all inodes in one group
-    	superblock.s_mtime = 0; // Mount time (not set here)
+    	superblock.s_mtime = 128; // Mount time (not set here)
     	superblock.s_wtime = current_time; // Write time
     	superblock.s_mnt_count = 0; // Number of times mounted since last consistency check
     	superblock.s_max_mnt_count = -1; // Disable forced filesystem checks based on mount-count
@@ -218,9 +218,9 @@ void write_superblock(int fd) {
     	superblock.s_errors = 1; // Behaviour when detecting errors: Ignore errors
    	superblock.s_minor_rev_level = 0; // Minor revision level
   	superblock.s_lastcheck = current_time; // Last check time
-    	superblock.s_checkinterval = 0xFFFFFFFF; // Max value for check interval - effectively disables it
+    	superblock.s_checkinterval = 1; // Max value for check interval - effectively disables it
     	superblock.s_creator_os = 0; // Linux
-    	superblock.s_rev_level = EXT2_GOOD_OLD_REV; // Revision level
+    	superblock.s_rev_level = 0; // Revision level
     	superblock.s_def_resuid = 0; // Default uid for reserved blocks
     	superblock.s_def_resgid = 0; // Default gid for reserved blocks
 
