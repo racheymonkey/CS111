@@ -304,10 +304,10 @@ void write_block_bitmap(int fd) {
 	// Calculate size of bitmap to write
 	ssize_t size = sizeof(map_value);
 
-    	if (write(fd, map_value, size) != size) {
+    	if (write(fd, map_value, size) != size)
 	{
 		errno_exit("write");
-    	}
+	}
 }
 
 void write_inode_bitmap(int fd) {
