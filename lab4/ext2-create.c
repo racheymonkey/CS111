@@ -196,31 +196,31 @@ void write_superblock(int fd) {
 
 	struct ext2_superblock superblock = {0};
 
-	superblock.s_inodes_count = NUM_INODES;
-	superblock.s_blocks_count = NUM_BLOCKS;
-	superblock.s_r_blocks_count = 0;
-	superblock.s_free_blocks_count = NUM_FREE_BLOCKS;
-	superblock.s_free_inodes_count = NUM_FREE_INODES;
-	superblock.s_first_data_block = 1; /* First Data Block */
-	superblock.s_log_block_size = 0;		/* 1024 */
-	superblock.s_log_frag_size = 0;		/* 1024 */
-	superblock.s_blocks_per_group = NUM_BLOCKS;
-	superblock.s_frags_per_group = NUM_BLOCKS;
-	superblock.s_inodes_per_group = 128;
-	superblock.s_mtime = 0;			/* Mount time */
-	superblock.s_wtime = current_time;	/* Write time */
-	superblock.s_mnt_count = 0;		/* Number of times mounted so far */
-	superblock.s_max_mnt_count = -1;	/* Make this unlimited */
+	superblock.s_inodes_count      = NUM_INODES; // done
+	superblock.s_blocks_count      = NUM_BLOCKS; // done
+	superblock.s_r_blocks_count    = 0; // reserved blocks (done)
+	superblock.s_free_blocks_count = NUM_FREE_BLOCKS; // done
+	superblock.s_free_inodes_count = NUM_FREE_INODES; // done
+	superblock.s_first_data_block  = SUPERBLOCK_BLOCKNO; /* First Data Block */ // done
+	superblock.s_log_block_size    = 0; /* 1024 */ // done
+	superblock.s_log_frag_size     = 0; /* 1024 */ // done
+	superblock.s_blocks_per_group  = NUM_BLOCKS * 8; // done, indicates each block group has 1 block 
+	superblock.s_frags_per_group   = NUM_BLOCKS * 8; // done, 0 indicates no fragments per group
+	superblock.s_inodes_per_group  = NUM_INODES; // done, one inode table
+	superblock.s_mtime             = 0; /* Mount time */ // done
+	superblock.s_wtime             = current_time; /* Write time */ // done
+	superblock.s_mnt_count         = 0; /* Number of times mounted so far */ // done, 0 or 1???
+	superblock.s_max_mnt_count     = -1; /* Make this unlimited */ // done
 	superblock.s_magic = EXT2_SUPER_MAGIC;	/* ext2 Signature */
-	superblock.s_state = 1;			/* File system is clean */
-	superblock.s_errors = 1;			/* Ignore the error (continue on) */
-	superblock.s_minor_rev_level = 0;	/* Leave this as 0 */
-	superblock.s_lastcheck = current_time;	/* Last check time */
-	superblock.s_checkinterval = 1;	/* Force checks by making them every 1 second */
-	superblock.s_creator_os = 0;		/* Linux */
-	superblock.s_rev_level = 0;		/* Leave this as 0 */
-	superblock.s_def_resuid = 0;		/* root */
-	superblock.s_def_resgid = 0;		/* root */
+	superblock.s_state             = 1; /* File system is clean */ // done, 1 means file system is clean
+	superblock.s_errors            = 1; /* Ignore the error (continue on) */ // done, 1 means ignore
+	superblock.s_minor_rev_level   = 0; /* Leave this as 0 */
+	superblock.s_lastcheck         = current_time; /* Last check time */ // done
+	superblock.s_checkinterval     = 1; /* Force checks by making them every 1 second */ // done
+	superblock.s_creator_os        = 0; /* Linux */
+	superblock.s_rev_level         = 0; /* Leave this as 0 */
+	superblock.s_def_resuid        = 0; /* root */
+	superblock.s_def_resgid        = 0; /* root */
 
 	/* You can leave everything below this line the same, delete this
 	   comment when you're done the lab */
