@@ -187,29 +187,26 @@ u32 get_current_time() {
 }
 
 void write_superblock(int fd) {
-	off_t off = lseek(fd, BLOCK_OFFSET(1), SEEK_SET);
-	if (off == -1) {
-		errno_exit("lseek");
-	}
+    off_t off = lseek(fd, BLOCK_OFFSET(SUPERBLOCK_BLOCKNO), SEEK_SET);
+    if (off == -1) {
+        errno_exit("lseek");
+    }
 
-	u32 current_time = get_current_time();
+    u32 current_time = get_current_time();
 
-	struct ext2_superblock superblock = {0};
-
-	// TODO It's all yours
-	// TODO finish the superblock number setting
+    struct ext2_superblock superblock = {0};
     superblock.s_inodes_count = NUM_INODES;
     superblock.s_blocks_count = NUM_BLOCKS;
     superblock.s_r_blocks_count = 0;
     superblock.s_free_blocks_count = NUM_FREE_BLOCKS;
     superblock.s_free_inodes_count = NUM_FREE_INODES;
-    superblock.s_first_data_block = 1;
+    superblock.s_first_data_block = SUPERBLOCK_BLOCKNO;
     superblock.s_log_block_size = 0; // Logarithm (base 2) of the block size. 0 indicates 1024.
     superblock.s_log_frag_size = 0; // Logarithm (base 2) of the fragment size. 0 indicates 1024.
     superblock.s_blocks_per_group = NUM_BLOCKS; // All blocks in one group
     superblock.s_frags_per_group = NUM_BLOCKS; // All frags in one group
     superblock.s_inodes_per_group = NUM_INODES; // All inodes in one group
-    superblock.s_mtime = 0; // Mount time not set here
+    superblock.s_mtime = current_time; // Mount time
     superblock.s_wtime = current_time; // Write time
     superblock.s_mnt_count = 0;
     superblock.s_max_mnt_count = -1; // Disable forced filesystem checks based on mount-count
@@ -225,6 +222,7 @@ void write_superblock(int fd) {
     superblock.s_def_resgid = 0; // Default gid for reserved blocks
 
     // UUID and volume name would typically be set with actual unique values and meaningful names.
+    // I have replaced these with random values for illustration purposes.
     memcpy(&superblock.s_uuid, "123456789abcdef0", 16);
     strncpy((char *)superblock.s_volume_name, "MyExt2FS", 16);
 
