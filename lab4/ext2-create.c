@@ -198,31 +198,35 @@ void write_superblock(int fd) {
 
 	// TODO It's all yours
 	// TODO finish the superblock number setting
-	superblock.s_inodes_count = NUM_INODES;
-    	superblock.s_blocks_count = NUM_BLOCKS;
-    	superblock.s_r_blocks_count = 0; // Reserved blocks count
-    	superblock.s_free_blocks_count = NUM_FREE_BLOCKS;
-    	superblock.s_free_inodes_count = NUM_FREE_INODES;
-    	superblock.s_first_data_block = 1;
-    	superblock.s_log_block_size = 0; // Block size is 1024 (2^0 * 1024 = 1024)
-    	superblock.s_log_frag_size = 0;  // Fragment size is 1024 (2^0 * 1024 = 1024)
-  	superblock.s_blocks_per_group = NUM_BLOCKS; // For simplicity, all blocks in one group
-    	superblock.s_frags_per_group = NUM_BLOCKS;  // For simplicity, all fragments in one group
-	superblock.s_inodes_per_group = NUM_INODES; // For simplicity, all inodes in one group
-    	superblock.s_mtime = current_time; // Mount time (not set here)
-    	superblock.s_wtime = current_time; // Write time
-    	superblock.s_mnt_count = 0; // Number of times mounted since last consistency check
-    	superblock.s_max_mnt_count = -1; // Disable forced filesystem checks based on mount-count
-    	superblock.s_magic = EXT2_SUPER_MAGIC; // ext2 Signature
-    	superblock.s_state = 1; // File system is clean
-    	superblock.s_errors = 1; // Behaviour when detecting errors: Ignore errors
-   	superblock.s_minor_rev_level = 0; // Minor revision level
-  	superblock.s_lastcheck = current_time; // Last check time
-    	superblock.s_checkinterval = 86400; // Max value for check interval - effectively disables it
-    	superblock.s_creator_os = 0; // Linux
-    	superblock.s_rev_level = EXT2_GOOD_OLD_REV; // Revision level
-    	superblock.s_def_resuid = 0; // Default uid for reserved blocks
-    	superblock.s_def_resgid = 0; // Default gid for reserved blocks
+    superblock.s_inodes_count = NUM_INODES;
+    superblock.s_blocks_count = NUM_BLOCKS;
+    superblock.s_r_blocks_count = 0;
+    superblock.s_free_blocks_count = NUM_FREE_BLOCKS;
+    superblock.s_free_inodes_count = NUM_FREE_INODES;
+    superblock.s_first_data_block = 1;
+    superblock.s_log_block_size = 0; // Logarithm (base 2) of the block size. 0 indicates 1024.
+    superblock.s_log_frag_size = 0; // Logarithm (base 2) of the fragment size. 0 indicates 1024.
+    superblock.s_blocks_per_group = NUM_BLOCKS; // All blocks in one group
+    superblock.s_frags_per_group = NUM_BLOCKS; // All frags in one group
+    superblock.s_inodes_per_group = NUM_INODES; // All inodes in one group
+    superblock.s_mtime = 0; // Mount time not set here
+    superblock.s_wtime = current_time; // Write time
+    superblock.s_mnt_count = 0;
+    superblock.s_max_mnt_count = -1; // Disable forced filesystem checks based on mount-count
+    superblock.s_magic = EXT2_SUPER_MAGIC; // ext2 signature
+    superblock.s_state = 1; // Filesystem is clean
+    superblock.s_errors = 1; // Behaviour when detecting errors: Ignore errors
+    superblock.s_minor_rev_level = 0;
+    superblock.s_lastcheck = current_time; // Last check time
+    superblock.s_checkinterval = 86400; // Check interval set to 1 day
+    superblock.s_creator_os = 0; // Linux
+    superblock.s_rev_level = EXT2_GOOD_OLD_REV; // Revision level
+    superblock.s_def_resuid = 0; // Default uid for reserved blocks
+    superblock.s_def_resgid = 0; // Default gid for reserved blocks
+
+    // UUID and volume name would typically be set with actual unique values and meaningful names.
+    memcpy(&superblock.s_uuid, "123456789abcdef0", 16);
+    strncpy((char *)superblock.s_volume_name, "MyExt2FS", 16);
 
 	/* You can leave everything below this line the same, delete this
 	   comment when you're done the lab */
@@ -242,9 +246,6 @@ void write_superblock(int fd) {
 	superblock.s_uuid[13] = 0xC0;
 	superblock.s_uuid[14] = 0xFF;
 	superblock.s_uuid[15] = 0xEE;
-
-	memcpy(&superblock.s_volume_name, "cs111-base", 10);
-	memcpy(superblock.s_volume_name, "cs111-base", strlen("cs111-base") + 1); //added
 
 	ssize_t size = sizeof(superblock);
 	if (write(fd, &superblock, size) != size) {
