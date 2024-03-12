@@ -273,15 +273,18 @@ void write_block_group_descriptor_table(int fd) {
 }
 
 // Set Bit Function
-void set_bit(u8 *bitmap, u32 number)
-{
-    u32 byte_num = (number - 1) / 8;
-    u32 bit_num = (number - 1) % 8;
-    bitmap[byte_num] |= (1 << bit_num);
+// Sets (marks as 1) a specific bit in a bitmap (track allocation status of blocks and inodes in ext2)
+void set_bit(u8 *bitmap, u32 number) {
+	// Calculate byte index in the bitmap array where bit to be set is located
+	u32 byte_num = (number - 1) / 8;
+    	// Calculate bit position within byte indentified by byte_num
+	u32 bit_num = (number - 1) % 8;
+
+	// Use bitwise OR to set specific bit to 1
+    	bitmap[byte_num] |= (1 << bit_num);
 }
 
 void write_block_bitmap(int fd) {
-
 	off_t off = lseek(fd, BLOCK_OFFSET(BLOCK_BITMAP_BLOCKNO), SEEK_SET);
 	if (off == -1)
 	{
@@ -289,22 +292,19 @@ void write_block_bitmap(int fd) {
 	}
 	
 	// TODO It's all yours
-    	u8 bitmap[BLOCK_SIZE] = {0x00};
+	// Initialize bitmap with all bits set to 0
+	u8 map_value[BLOCK_SIZE] = {0x00};
     
-	for (u32 i = 1; i < LAST_BLOCK + 1; i++)
+	// Set bits for blocks that are already used by the filesystem structure
+    	for (u32 i = 1; i <= LAST_BLOCK; i++)
 	{
-		set_bit(bitmap, i);
-	}
-	
-    	// set the first 24 bits to 1 to mark the allocated blocks
-    	for (u32 i = NUM_INODES * 8; i <= NUM_BLOCKS * 8; i++)
-	{
-		set_bit(bitmap, i);
+		set_bit(map_value, i); // Set the bit for each block, marking it as used
     	}
 
-    	ssize_t size = sizeof(bitmap);
+	// Calculate size of bitmap to write
+	ssize_t size = sizeof(map_value);
 
-	if (write(fd, bitmap, size) != size)
+    	if (write(fd, map_value, size) != size) {
 	{
 		errno_exit("write");
     	}
@@ -318,25 +318,18 @@ void write_inode_bitmap(int fd) {
 	}
 	
 	// TODO It's all yours
-    	u8 bitmap[BLOCK_SIZE] = {0x00};
-    
-	for (u32 i = 1; i < LAST_INO + 1; i++)
-	{
-		set_bit(bitmap, i);
+	u8 bitmap[BLOCK_SIZE] = {0x00}; // Initialize the inode bitmap with all bits set to 0, indicating all inodes are initially free.
+	    
+	// This loop sets bits for the inodes that are pre-allocated or used by the filesystem (root, lost+found, etc.).
+	for (u32 i = 1; i <= LAST_INO; i++) { // Iterate through the inode numbers that are in use.
+		set_bit(bitmap, i); // Set the bit for each inode, marking it as allocated.
 	}
-
-	for (u32 i = NUM_INODES + 1; i <= NUM_BLOCKS * 8; i++)
-	{
-		set_bit(bitmap, i);
-    	}
-
-
-    	ssize_t size = sizeof(bitmap);
-
-	if (write(fd, bitmap, size) != size)
-	{
-    		errno_exit("write");
-    	}
+	
+	ssize_t size = sizeof(bitmap); // Calculate the size of the bitmap to write.
+	
+	if (write(fd, bitmap, size) != size) { // Write the inode bitmap to the disk image.
+		errno_exit("write"); // Error handling for write failure.
+	}
 }
 
 void write_inode(int fd, u32 index, struct ext2_inode *inode) {
