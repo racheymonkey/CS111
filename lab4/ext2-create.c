@@ -187,44 +187,40 @@ u32 get_current_time() {
 }
 
 void write_superblock(int fd) {
-    off_t off = lseek(fd, BLOCK_OFFSET(SUPERBLOCK_BLOCKNO), SEEK_SET);
-    if (off == -1) {
-        errno_exit("lseek");
-    }
+	off_t off = lseek(fd, BLOCK_OFFSET(1), SEEK_SET);
+	if (off == -1) {
+		errno_exit("lseek");
+	}
 
-    u32 current_time = get_current_time();
+	u32 current_time = get_current_time();
 
-    struct ext2_superblock superblock = {0};
-    superblock.s_inodes_count = NUM_INODES;
-    superblock.s_blocks_count = NUM_BLOCKS;
-    superblock.s_r_blocks_count = 0;
-    superblock.s_free_blocks_count = NUM_FREE_BLOCKS;
-    superblock.s_free_inodes_count = NUM_FREE_INODES;
-    superblock.s_first_data_block = SUPERBLOCK_BLOCKNO;
-    superblock.s_log_block_size = 0; // Logarithm (base 2) of the block size. 0 indicates 1024.
-    superblock.s_log_frag_size = 0; // Logarithm (base 2) of the fragment size. 0 indicates 1024.
-    superblock.s_blocks_per_group = NUM_BLOCKS; // All blocks in one group
-    superblock.s_frags_per_group = NUM_BLOCKS; // All frags in one group
-    superblock.s_inodes_per_group = NUM_INODES; // All inodes in one group
-    superblock.s_mtime = current_time; // Mount time
-    superblock.s_wtime = current_time; // Write time
-    superblock.s_mnt_count = 0;
-    superblock.s_max_mnt_count = -1; // Disable forced filesystem checks based on mount-count
-    superblock.s_magic = EXT2_SUPER_MAGIC; // ext2 signature
-    superblock.s_state = 1; // Filesystem is clean
-    superblock.s_errors = 1; // Behaviour when detecting errors: Ignore errors
-    superblock.s_minor_rev_level = 0;
-    superblock.s_lastcheck = current_time; // Last check time
-    superblock.s_checkinterval = 86400; // Check interval set to 1 day
-    superblock.s_creator_os = 0; // Linux
-    superblock.s_rev_level = EXT2_GOOD_OLD_REV; // Revision level
-    superblock.s_def_resuid = 0; // Default uid for reserved blocks
-    superblock.s_def_resgid = 0; // Default gid for reserved blocks
+	struct ext2_superblock superblock = {0};
 
-    // UUID and volume name would typically be set with actual unique values and meaningful names.
-    // I have replaced these with random values for illustration purposes.
-    memcpy(&superblock.s_uuid, "123456789abcdef0", 16);
-    strncpy((char *)superblock.s_volume_name, "MyExt2FS", 16);
+	superblock.s_inodes_count = NUM_INODES;
+	superblock.s_blocks_count = NUM_BLOCKS;
+	superblock.s_r_blocks_count = 0;
+	superblock.s_free_blocks_count = NUM_FREE_BLOCKS;
+	superblock.s_free_inodes_count = NUM_FREE_INODES;
+	superblock.s_first_data_block = 1; /* First Data Block */
+	superblock.s_log_block_size = 0;		/* 1024 */
+	superblock.s_log_frag_size = 0;		/* 1024 */
+	superblock.s_blocks_per_group = NUM_BLOCKS;
+	superblock.s_frags_per_group = NUM_BLOCKS;
+	superblock.s_inodes_per_group = 128;
+	superblock.s_mtime = 0;			/* Mount time */
+	superblock.s_wtime = current_time;	/* Write time */
+	superblock.s_mnt_count = 0;		/* Number of times mounted so far */
+	superblock.s_max_mnt_count = -1;	/* Make this unlimited */
+	superblock.s_magic = EXT2_SUPER_MAGIC;	/* ext2 Signature */
+	superblock.s_state = 1;			/* File system is clean */
+	superblock.s_errors = 1;			/* Ignore the error (continue on) */
+	superblock.s_minor_rev_level = 0;	/* Leave this as 0 */
+	superblock.s_lastcheck = current_time;	/* Last check time */
+	superblock.s_checkinterval = 1;	/* Force checks by making them every 1 second */
+	superblock.s_creator_os = 0;		/* Linux */
+	superblock.s_rev_level = 0;		/* Leave this as 0 */
+	superblock.s_def_resuid = 0;		/* root */
+	superblock.s_def_resgid = 0;		/* root */
 
 	/* You can leave everything below this line the same, delete this
 	   comment when you're done the lab */
@@ -244,6 +240,8 @@ void write_superblock(int fd) {
 	superblock.s_uuid[13] = 0xC0;
 	superblock.s_uuid[14] = 0xFF;
 	superblock.s_uuid[15] = 0xEE;
+
+	memcpy(&superblock.s_volume_name, "cs111-base", 10);
 
 	ssize_t size = sizeof(superblock);
 	if (write(fd, &superblock, size) != size) {
