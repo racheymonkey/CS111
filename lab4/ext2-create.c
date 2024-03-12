@@ -250,7 +250,7 @@ void write_superblock(int fd) {
 }
 
 void write_block_group_descriptor_table(int fd) {
-	off_t off = lseek(fd, BLOCK_OFFSET(2), SEEK_SET);
+	off_t off = lseek(fd, BLOCK_OFFSET(BLOCK_GROUP_DESCRIPTOR_BLOCKNO), SEEK_SET);
 	if (off == -1) {
 		errno_exit("lseek");
 	}
@@ -284,7 +284,8 @@ void set_bit(u8 *bitmap, u32 number) {
     	bitmap[byte_num] |= (1 << bit_num);
 }
 
-void write_block_bitmap(int fd) {
+void write_block_bitmap(int fd)
+{
 	off_t off = lseek(fd, BLOCK_OFFSET(BLOCK_BITMAP_BLOCKNO), SEEK_SET);
 	if (off == -1)
 	{
@@ -318,17 +319,17 @@ void write_inode_bitmap(int fd) {
 	}
 	
 	// TODO It's all yours
-	u8 bitmap[BLOCK_SIZE] = {0x00};
+	u8 map_value[BLOCK_SIZE] = {0x00};
 	    
 	// Sets bits for the inodes that are used by the filesystem
 	for (u32 i = 1; i <= LAST_INO; i++)
 	{
-		set_bit(bitmap, i);
+		set_bit(map_value, i);
 	}
 	
-	ssize_t size = sizeof(bitmap);
+	ssize_t size = sizeof(map_value);
 	
-	if (write(fd, bitmap, size) != size)
+	if (write(fd, map_value, size) != size)
 	{
 		errno_exit("write");
 	}
@@ -421,7 +422,8 @@ void write_inode_table(int fd) {
 	write_inode(fd, EXT2_ROOT_INO, &root_inode);
 }
 
-void write_root_dir_block(int fd) {
+void write_root_dir_block(int fd)
+{
 	// TODO It's all yours
 	
 	// move the file descriptor's position to the start of the root directory block.
@@ -499,7 +501,8 @@ void write_lost_and_found_dir_block(int fd) {
 	dir_entry_write(fill_entry, fd);
 }
 
-void write_hello_world_file_block(int fd) {
+void write_hello_world_file_block(int fd)
+{
 	// navigate to the start of the block
 	off_t off = BLOCK_OFFSET(HELLO_WORLD_FILE_BLOCKNO);
 	off = lseek(fd, off, SEEK_SET);
