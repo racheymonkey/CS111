@@ -380,40 +380,17 @@ void write_inode_table(int fd) {
 
 	// TODO It's all yours
 	// TODO finish the inode entries for the other files
-	
-	// hello-world file inode
-	struct ext2_inode hello_world_inode = {0};
-	hello_world_inode.i_mode = EXT2_S_IFREG | EXT2_S_IRUSR | EXT2_S_IWUSR | EXT2_S_IRGRP | EXT2_S_IROTH;
-	hello_world_inode.i_size = 12;
-	hello_world_inode.i_uid = 1000;
-	hello_world_inode.i_atime = current_time;
-	hello_world_inode.i_ctime = current_time;
-	hello_world_inode.i_mtime = current_time;
-	hello_world_inode.i_dtime = 0; // 0 since the file is not deleted
-	hello_world_inode.i_gid = 1000;
-	hello_world_inode.i_links_count = 1;
-	hello_world_inode.i_blocks = 2; // occupies 2 blocks (in ext2, this number is in units of 512 bytes, so 1 block of 1024 bytes counts as 2)
-	hello_world_inode.i_block[0] = HELLO_WORLD_FILE_BLOCKNO;
-	write_inode(fd, HELLO_WORLD_INO, &hello_world_inode);
-
-	// hello symbolic link inode
-	struct ext2_inode hello_inode = {0};
-	hello_inode.i_mode = EXT2_S_IFLNK | EXT2_S_IRUSR | EXT2_S_IWUSR | EXT2_S_IRGRP | EXT2_S_IROTH;
-	hello_inode.i_uid = 1000;
-	hello_inode.i_gid = 1000;
-	hello_inode.i_atime = current_time;
-	hello_inode.i_ctime = current_time;
-	hello_inode.i_mtime = current_time;
-	hello_inode.i_links_count = 1;
-	hello_inode.i_blocks = 0; // no additional disk blocks are allocated, so this is 0
-	char const target_path[] = "hello-world";
-	hello_inode.i_size = strlen(target_path);
-	memcpy(&hello_inode.i_block[0], target_path, strlen(target_path) + 1); // store  symbolic link's target path  in the i_block array
-	write_inode(fd, HELLO_INO, &hello_inode);
 
 	// root directory inode
 	struct ext2_inode root_inode = {0};
-	root_inode.i_mode = EXT2_S_IFDIR | EXT2_S_IRUSR | EXT2_S_IWUSR | EXT2_S_IXUSR | EXT2_S_IRGRP | EXT2_S_IXGRP | EXT2_S_IROTH | EXT2_S_IXOTH;
+	root_dir_inode.i_mode = EXT2_S_IFDIR
+	                              | EXT2_S_IRUSR
+	                              | EXT2_S_IWUSR
+	                              | EXT2_S_IXUSR
+	                              | EXT2_S_IRGRP
+	                              | EXT2_S_IXGRP
+	                              | EXT2_S_IROTH
+	                              | EXT2_S_IXOTH;
 	root_inode.i_size = BLOCK_SIZE; // size of directory is one block
 	root_inode.i_uid = 0;
 	root_inode.i_atime = current_time;
@@ -422,9 +399,46 @@ void write_inode_table(int fd) {
 	root_inode.i_dtime = 0; // 0 since the directory is not deleted
 	root_inode.i_gid = 0;
 	root_inode.i_links_count = 3; // starts with 2 ('.' and '..') plus one for the root itself
-	root_inode.i_blocks = 2;
+	root_inode.i_blocks = 2; /* These are oddly 512 blocks */
 	root_inode.i_block[0] = ROOT_DIR_BLOCKNO;
 	write_inode(fd, EXT2_ROOT_INO, &root_inode);
+	
+	// hello-world file inode
+	struct ext2_inode hello_world = {0};
+	hello_world.i_mode = EXT2_S_IFREG
+	                              | EXT2_S_IRUSR
+	                              | EXT2_S_IWUSR
+	                              | EXT2_S_IRGRP
+	                              | EXT2_S_IROTH;
+	hello_world.i_size = 12;
+	hello_world.i_uid = 1000;
+	hello_world.i_atime = current_time;
+	hello_world.i_ctime = current_time;
+	hello_world.i_mtime = current_time;
+	hello_world.i_dtime = 0; // 0 since the file is not deleted
+	hello_world.i_gid = 1000;
+	hello_world.i_links_count = 1;
+	hello_world.i_blocks = 2; /* These are oddly 512 blocks */
+	hello_world.i_block[0] = HELLO_WORLD_FILE_BLOCKNO;
+	write_inode(fd, HELLO_WORLD_INO, &hello_world);
+
+	// hello symbolic link inode
+	struct ext2_inode hello_symbolic = {0};
+	hello_symbolic.i_mode = EXT2_S_IFLNK
+	                              | EXT2_S_IRUSR
+	                              | EXT2_S_IWUSR
+	                              | EXT2_S_IRGRP
+	                              | EXT2_S_IROTH;
+	hello_symbolic.i_size = 11;
+	hello_symbolic.i_uid = 1000;
+	hello_symbolic.i_gid = 1000;
+	hello_symbolic.i_atime = current_time;
+	hello_symbolic.i_ctime = current_time;
+	hello_symbolic.i_mtime = current_time;
+	hello_symbolic.i_links_count = 1;
+	hello_symbolic.i_blocks = 0; // no additional disk blocks are allocated, so this is 0
+	memcpy(&hello_symbolic.i_block[0], target_path, &hello_symbolic.i_size + 1); // store  symbolic link's target path  in the i_block array
+	write_inode(fd, HELLO_INO, &hello_symbolic);
 }
 
 void write_root_dir_block(int fd)
