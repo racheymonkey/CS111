@@ -320,7 +320,7 @@ void write_block_bitmap(int fd) {
 	    }
     }
 
-    if (write(fd, bitmap, BLOCK_SIZE) != BLOCK_SIZE)
+    if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE)
     {
         errno_exit("write");
     }
