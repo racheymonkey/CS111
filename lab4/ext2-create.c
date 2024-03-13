@@ -382,8 +382,8 @@ void write_inode_table(int fd) {
 	// TODO finish the inode entries for the other files
 
 	// root directory inode
-	struct ext2_inode root_inode = {0};
-	root_dir_inode.i_mode = EXT2_S_IFDIR
+	struct ext2_inode root_dir = {0};
+	root_dir.i_mode = EXT2_S_IFDIR
 	                              | EXT2_S_IRUSR
 	                              | EXT2_S_IWUSR
 	                              | EXT2_S_IXUSR
@@ -391,17 +391,17 @@ void write_inode_table(int fd) {
 	                              | EXT2_S_IXGRP
 	                              | EXT2_S_IROTH
 	                              | EXT2_S_IXOTH;
-	root_inode.i_size = BLOCK_SIZE; // size of directory is one block
-	root_inode.i_uid = 0;
-	root_inode.i_atime = current_time;
-	root_inode.i_ctime = current_time;
-	root_inode.i_mtime = current_time;
-	root_inode.i_dtime = 0; // 0 since the directory is not deleted
-	root_inode.i_gid = 0;
-	root_inode.i_links_count = 3; // starts with 2 ('.' and '..') plus one for the root itself
-	root_inode.i_blocks = 2; /* These are oddly 512 blocks */
-	root_inode.i_block[0] = ROOT_DIR_BLOCKNO;
-	write_inode(fd, EXT2_ROOT_INO, &root_inode);
+	root_dir.i_size = BLOCK_SIZE; // size of directory is one block
+	root_dir.i_uid = 0;
+	root_dir.i_atime = current_time;
+	root_dir.i_ctime = current_time;
+	root_dir.i_mtime = current_time;
+	root_dir.i_dtime = 0; // 0 since the directory is not deleted
+	root_dir.i_gid = 0;
+	root_dir.i_links_count = 3; // starts with 2 ('.' and '..') plus one for the root itself
+	root_dir.i_blocks = 2; /* These are oddly 512 blocks */
+	root_dir.i_block[0] = ROOT_DIR_BLOCKNO;
+	write_inode(fd, EXT2_ROOT_INO, &root_dir);
 	
 	// hello-world file inode
 	struct ext2_inode hello_world = {0};
