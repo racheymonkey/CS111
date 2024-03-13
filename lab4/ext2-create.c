@@ -284,7 +284,7 @@ void markUsed(u8 *map_value, u32 bitNumber) {
 	u32 bit = (bitNumber - 1) % 8;
 
 	// Create a bitmask with the target bit set to 1
-	u8 mask_value = 1 << bitInByte;
+	u8 mask_value = 1 << bit;
 	// Mark the bit as used
     	map_value[byte] |= mask_value;
 }
