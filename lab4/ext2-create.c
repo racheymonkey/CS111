@@ -276,76 +276,55 @@ void write_block_group_descriptor_table(int fd) {
 }
 
 void write_block_bitmap(int fd) {
-	off_t off = lseek(fd, BLOCK_OFFSET(BLOCK_BITMAP_BLOCKNO), SEEK_SET);
-	if (off == -1)
-    	{
-        	errno_exit("lseek");
-    	}
+    off_t off = lseek(fd, BLOCK_OFFSET(BLOCK_BITMAP_BLOCKNO), SEEK_SET);
+    if (off == -1)
+    {
+        errno_exit("lseek");
+    }
 
 	// TODO It's all yours
-    	u8 map_value[BLOCK_SIZE] = {0x00}; // Initialize bitmap with all bits set to 0
+    u8 map_value[BLOCK_SIZE] = {0}; // Initialize bitmap with all bits set to 0
 
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 8; j++) {
-			if (i == 2 && j == 7) { // keep block 24 free
-				continue;
-			}
-			map_value[i] |= 1 << j;
-		}
-	}
+    // Directly set the first 24 bits and skip the 24th by initializing first 3 bytes to 0xFF and clearing the 24th bit
+    map_value[0] = map_value[1] = 0xFF;
+    map_value[2] = 0xFF; // Will correct the 24th bit next
+    map_value[2] &= ~(1 << 7); // Clear the 24th bit (keeping block 24 free)
 
-	map_value[127] |= 1 << 7; // make block 1024 used
+    map_value[127] |= 1 << 7; // Make block 1024 used
 
-	//setting 1025th block to 8192th block to used
-	for (int i = 128; i < 1024; i++){
-		for (int j = 0; j < 8; j++) {
-			map_value[i] |= 1 << j;
-		}
-	}
+    // Setting 1025th block to 8192nd block as used by setting bytes from 128 to 1023 to 0xFF
+    memset(&map_value[128], 0xFF, 1024 - 128);
 
-    	if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE)
-    	{
-        	errno_exit("write");
-    	}
+    if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE)
+    {
+        errno_exit("write");
+    }
 }
+
 
 void write_inode_bitmap(int fd) {
-	off_t off = lseek(fd, BLOCK_OFFSET(INODE_BITMAP_BLOCKNO), SEEK_SET);
-	if (off == -1)
-	{
-		errno_exit("lseek");
-	}
-	
-	// TODO It's all yours
-	u8 map_value[BLOCK_SIZE] = {0x00};
-	    
-	//setting the first 13 blocks as used
-	for (int i = 0; i < 2; i++){
-		for (int j = 0; j < 8; j++)
-		{
-			if (i == 1 && j > 4)
-			{
-				continue;
-			}
-			map_value[i] |= 1 << j;
-		}
-	}
+    off_t off = lseek(fd, BLOCK_OFFSET(INODE_BITMAP_BLOCKNO), SEEK_SET);
+    if (off == -1) {
+        errno_exit("lseek");
+    }
 
-	for (int i = 16; i < 1024; i++)
-	{
-		for (int j = 0; j < 8; j++)
-		{
-			map_value[i] |= 1 << j;
-		}
-	}
-	
-	ssize_t map_size = sizeof(map_value);
-	
-	if (write(fd, map_value, map_size) != map_size)
-	{
-		errno_exit("write");
-	}
+    u8 map_value[BLOCK_SIZE] = {0}; // Initialize bitmap with all bits set to 0
+
+    // Set the first 13 blocks as used. Specifically handle the first 2 bytes and then part of the third byte
+    map_value[0] = 0xFF; // First 8 blocks
+    map_value[1] = 0xFF; // Next 8 blocks, but we'll handle the 13th block condition next
+    map_value[1] &= ~(0xE0); // Ensure only the first 5 bits of the second byte are set (13 blocks in total)
+
+    // Setting blocks 1025th to 8192nd as used
+    memset(&map_value[16], 0xFF, 1024 - 16); // Directly use memset for large range
+
+    ssize_t map_size = sizeof(map_value);
+
+    if (write(fd, map_value, map_size) != map_size) {
+        errno_exit("write");
+    }
 }
+
 
 void write_inode(int fd, u32 index, struct ext2_inode *inode) {
 	off_t off = BLOCK_OFFSET(INODE_TABLE_BLOCKNO)
