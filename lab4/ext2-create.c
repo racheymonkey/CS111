@@ -290,34 +290,34 @@ void markUsed(u8 *map_value, u32 bitNumber) {
 }
 
 void write_block_bitmap(int fd) {
-    off_t off = lseek(fd, BLOCK_OFFSET(BLOCK_BITMAP_BLOCKNO), SEEK_SET);
-    if (off == -1) {
-        errno_exit("lseek");
+	off_t off = lseek(fd, BLOCK_OFFSET(BLOCK_BITMAP_BLOCKNO), SEEK_SET);
+	if (off == -1)
+    	{
+        	errno_exit("lseek");
+    	}
+
+	// TODO It's all yours
+    	u8 map_value[BLOCK_SIZE] = {0x00}; // Initialize bitmap with all bits set to 0
+
+    	// set bits for blocks explicitly specified
+    	for (int i = 0; i < 2; i++) {
+        	for (int j = 0; j < 8; j++) {
+            	// skip setting bits beyond the 13th
+            		if (i == 1 && j > 4)
+			{
+                		break;
+            		}
+            		map_value[i] |= 1 << j;
+        	}
     }
 
-    u8 bitmap[BLOCK_SIZE] = {0}; // Initialize bitmap with all bits set to 0
-
-    // set bits for blocks that are already used by the filesystem structure
-    for (int i = 0; i < (LAST_BLOCK / 8); i++)
+    // set all bits to 1 from byte 16 to the end of the bitmap
+    for (int i = 16; i < BLOCK_SIZE; i++)
     {
-        for (int j = 0; j < 8; j++)
-	{
-            // if the block index exceeds LAST_BLOCK, stop setting bits
-            if ((i * 8 + j) >= LAST_BLOCK) 
+	    for (int j = 0; j < 8; j++)
 	    {
-                break;
-            }
-            bitmap[i] |= 1 << j;
-        }
-    }
-
-    // Set remaining bits as used
-    for (int i = X; i < BLOCK_SIZE; i++)
-    {
-         for (int j = 0; j < 8; j++)
-	 {
-             bitmap[i] |= 1 << j;
-         }
+		    map_value[i] |= 1 << j;
+	    }
     }
 
     if (write(fd, bitmap, BLOCK_SIZE) != BLOCK_SIZE)
