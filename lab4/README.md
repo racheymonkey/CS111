@@ -25,7 +25,7 @@ In this lab, I created a 1 MiB ext2 file system with two directories, one regula
 
    fsck.ext2 cs111-base.img
    
-   Ensure that 'fsck.ext2` reports no errors.
+   Ensure that 'fsck.ext2' reports no errors.
 
 6. Prepare a mount point and mount the filesystem:
 
