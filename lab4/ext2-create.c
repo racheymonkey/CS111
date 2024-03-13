@@ -460,7 +460,6 @@ void write_root_dir_block(int fd)
 	struct ext2_dir_entry current = {0};
 	dir_entry_set(current, EXT2_ROOT_INO, ".");
 	dir_entry_write(current, fd);
-	// deduct the size of the entry from the remaining bytes
 	space_remaining -= current.rec_len;
 	
 	// parent directory ("..")
@@ -468,12 +467,6 @@ void write_root_dir_block(int fd)
 	dir_entry_set(parent, EXT2_ROOT_INO, "..");
 	dir_entry_write(parent, fd);
 	space_remaining -= parent.rec_len;
-	
-	// "lost+found" directory
-	struct ext2_dir_entry lost_found = {0};
-	dir_entry_set(lost_found, LOST_AND_FOUND_INO, "lost+found");
-	dir_entry_write(lost_found, fd);
-	space_remaining -= lost_found.rec_len;
 
     	// "hello-world" file
     	struct ext2_dir_entry hello_world = {0};
@@ -486,6 +479,12 @@ void write_root_dir_block(int fd)
     	dir_entry_set(hello_symbolic, HELLO_INO, "hello");
     	dir_entry_write(hello_symbolic, fd);
     	space_remaining -= hello_symbolic.rec_len;
+
+	// "lost+found" directory
+	struct ext2_dir_entry lost_found = {0};
+	dir_entry_set(lost_found, LOST_AND_FOUND_INO, "lost+found");
+	dir_entry_write(lost_found, fd);
+	space_remaining -= lost_found.rec_len;
 
     	// use the remaining space with a filler entry
     	struct ext2_dir_entry fill = {0};
@@ -525,20 +524,18 @@ void write_hello_world_file_block(int fd)
 	// TODO It's all yours
 	
 	// navigate to the start of the block
-	off_t off = BLOCK_OFFSET(HELLO_WORLD_FILE_BLOCKNO);
-	off = lseek(fd, off, SEEK_SET);
-	if (off == -1)
+	off_t offset = BLOCK_OFFSET(HELLO_WORLD_FILE_BLOCKNO);
+	offset = lseek(fd, offset, SEEK_SET);
+	if (offset == -1)
 	{
 		errno_exit("lseek");
 	}
-	
-	char const text[] = "Hello world\n";
 
     	// calculate  size of the text to be written
-	ssize_t size_text = sizeof(text);
+	ssize_t size_text = sizeof("Hello world\n");
 	
 	// write the text to the file
-	if (write(fd, text, size_text) != size_text)
+	if (write(fd, "Hello world\n", size_text) != size_text)
 	{
 		errno_exit("write");
 	}
