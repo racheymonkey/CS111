@@ -259,12 +259,15 @@ void write_block_group_descriptor_table(int fd) {
 
 	// TODO It's all yours
 	// TODO finish the block group descriptor number setting
+	
 	block_group_descriptor.bg_block_bitmap = BLOCK_BITMAP_BLOCKNO;
 	block_group_descriptor.bg_inode_bitmap = INODE_BITMAP_BLOCKNO;
 	block_group_descriptor.bg_inode_table = INODE_TABLE_BLOCKNO;
+	
 	block_group_descriptor.bg_free_blocks_count = NUM_FREE_BLOCKS;
 	block_group_descriptor.bg_free_inodes_count = NUM_FREE_INODES;
-	block_group_descriptor.bg_used_dirs_count = 2;
+	
+	block_group_descriptor.bg_used_dirs_count = 2; // root & lost and found
 
 	ssize_t size = sizeof(block_group_descriptor);
 	if (write(fd, &block_group_descriptor, size) != size) {
@@ -274,14 +277,16 @@ void write_block_group_descriptor_table(int fd) {
 
 // Set Bit Function
 // Sets (marks as 1) a specific bit in a bitmap (track allocation status of blocks and inodes in ext2)
-void set_bit(u8 *bitmap, u32 number) {
+void markUsed(u8 *map_value, u32 bitNumber) {
 	// Calculate byte index in the bitmap array where bit to be set is located
-	u32 byte_num = (number - 1) / 8;
-    	// Calculate bit position within byte indentified by byte_num
-	u32 bit_num = (number - 1) % 8;
+	u32 byte = (bitNumber - 1) / 8;
+    	// Determine the specific bit within that byte to be marked
+	u32 bit = (bitNumber - 1) % 8;
 
-	// Use bitwise OR to set specific bit to 1
-    	bitmap[byte_num] |= (1 << bit_num);
+	// Create a bitmask with the target bit set to 1
+	u8 mask_value = 1 << bitInByte;
+	// Mark the bit as used
+    	map_value[byte] |= mask_value;
 }
 
 void write_block_bitmap(int fd)
@@ -299,13 +304,13 @@ void write_block_bitmap(int fd)
 	// Set bits for blocks that are already used by the filesystem structure
     	for (u32 i = 1; i <= LAST_BLOCK; i++)
 	{
-		set_bit(map_value, i); // Set the bit for each block, marking it as used
+		markUsed(map_value, i); // Set the bit for each block, marking it as used
     	}
 
 	// Calculate size of bitmap to write
-	ssize_t size = sizeof(map_value);
+	ssize_t map_size = sizeof(map_value);
 
-    	if (write(fd, map_value, size) != size)
+    	if (write(fd, map_value, map_size) != map_size)
 	{
 		errno_exit("write");
 	}
@@ -324,12 +329,12 @@ void write_inode_bitmap(int fd) {
 	// Sets bits for the inodes that are used by the filesystem
 	for (u32 i = 1; i <= LAST_INO; i++)
 	{
-		set_bit(map_value, i);
+		markUsed(map_value, i);
 	}
 	
-	ssize_t size = sizeof(map_value);
+	ssize_t map_size = sizeof(map_value);
 	
-	if (write(fd, map_value, size) != size)
+	if (write(fd, map_value, map_size) != map_size)
 	{
 		errno_exit("write");
 	}
@@ -435,44 +440,44 @@ void write_root_dir_block(int fd)
 	}
 	
 	// initialize variable to keep track of the remaining space in the block
-	ssize_t bytes_remaining = BLOCK_SIZE;
+	ssize_t space_remaining = BLOCK_SIZE;
 	
 	// current directory (".")
-	struct ext2_dir_entry current_entry = {0};
-	dir_entry_set(current_entry, EXT2_ROOT_INO, ".");
-	dir_entry_write(current_entry, fd);
+	struct ext2_dir_entry current = {0};
+	dir_entry_set(current, EXT2_ROOT_INO, ".");
+	dir_entry_write(current, fd);
 	// deduct the size of the entry from the remaining bytes
-	bytes_remaining -= current_entry.rec_len;
+	space_remaining -= current.rec_len;
 	
 	// parent directory ("..")
-	struct ext2_dir_entry parent_entry = {0};
-	dir_entry_set(parent_entry, EXT2_ROOT_INO, "..");
-	dir_entry_write(parent_entry, fd);
-	bytes_remaining -= parent_entry.rec_len;
+	struct ext2_dir_entry parent = {0};
+	dir_entry_set(parent, EXT2_ROOT_INO, "..");
+	dir_entry_write(parent, fd);
+	space_remaining -= parent.rec_len;
 	
 	// "lost+found" directory
-	struct ext2_dir_entry lost_found_entry = {0};
-	dir_entry_set(lost_found_entry, LOST_AND_FOUND_INO, "lost+found");
-	dir_entry_write(lost_found_entry, fd);
-	bytes_remaining -= lost_found_entry.rec_len;
+	struct ext2_dir_entry lost_found = {0};
+	dir_entry_set(lost_found, LOST_AND_FOUND_INO, "lost+found");
+	dir_entry_write(lost_found, fd);
+	space_remaining -= lost_found.rec_len;
 
     	// "hello-world" file
-    	struct ext2_dir_entry hello_world_entry = {0};
-    	dir_entry_set(hello_world_entry, HELLO_WORLD_INO, "hello-world");
-    	dir_entry_write(hello_world_entry, fd);
-    	bytes_remaining -= hello_world_entry.rec_len;
+    	struct ext2_dir_entry hello_world = {0};
+    	dir_entry_set(hello_world, HELLO_WORLD_INO, "hello-world");
+    	dir_entry_write(hello_world, fd);
+    	space_remaining -= hello_world.rec_len;
 
     	// "hello" symbolic link
-    	struct ext2_dir_entry hello_entry = {0};
-    	dir_entry_set(hello_entry, HELLO_INO, "hello");
-    	dir_entry_write(hello_entry, fd);
-    	bytes_remaining -= hello_entry.rec_len;
+    	struct ext2_dir_entry hello_symbolic = {0};
+    	dir_entry_set(hello_symbolic, HELLO_INO, "hello");
+    	dir_entry_write(hello_symbolic, fd);
+    	space_remaining -= hello_symbolic.rec_len;
 
     	// use the remaining space with a filler entry
-    	struct ext2_dir_entry fill_entry = {0};
+    	struct ext2_dir_entry fill = {0};
 	// set  record length of the filler entry to occupy all remaining space
-    	fill_entry.rec_len = bytes_remaining;
-    	dir_entry_write(fill_entry, fd);
+    	fill.rec_len = space_remaining;
+    	dir_entry_write(fill, fd);
 }
 
 void write_lost_and_found_dir_block(int fd) {
@@ -482,27 +487,29 @@ void write_lost_and_found_dir_block(int fd) {
 		errno_exit("lseek");
 	}
 
-	ssize_t bytes_remaining = BLOCK_SIZE;
+	ssize_t space_remaining = BLOCK_SIZE;
 
 	struct ext2_dir_entry current_entry = {0};
 	dir_entry_set(current_entry, LOST_AND_FOUND_INO, ".");
 	dir_entry_write(current_entry, fd);
 
-	bytes_remaining -= current_entry.rec_len;
+	space_remaining -= current_entry.rec_len;
 
 	struct ext2_dir_entry parent_entry = {0};
 	dir_entry_set(parent_entry, EXT2_ROOT_INO, "..");
 	dir_entry_write(parent_entry, fd);
 
-	bytes_remaining -= parent_entry.rec_len;
+	space_remaining -= parent_entry.rec_len;
 
 	struct ext2_dir_entry fill_entry = {0};
-	fill_entry.rec_len = bytes_remaining;
+	fill_entry.rec_len = space_remaining;
 	dir_entry_write(fill_entry, fd);
 }
 
 void write_hello_world_file_block(int fd)
 {
+	// TODO It's all yours
+	
 	// navigate to the start of the block
 	off_t off = BLOCK_OFFSET(HELLO_WORLD_FILE_BLOCKNO);
 	off = lseek(fd, off, SEEK_SET);
@@ -514,10 +521,10 @@ void write_hello_world_file_block(int fd)
 	char const text[] = "Hello world\n";
 
     	// calculate  size of the text to be written
-	ssize_t size = sizeof(text);
+	ssize_t size_text = sizeof(text);
 	
 	// write the text to the file
-	if (write(fd, text, size) != size)
+	if (write(fd, text, size_text) != size_text)
 	{
 		errno_exit("write");
 	}
