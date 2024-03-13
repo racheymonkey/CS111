@@ -34,7 +34,7 @@ In this lab, I created a 1 MiB ext2 file system with two directories, one regula
 
 ## Cleaning up
 
-To clean up the build artifacts and reset the lab environment:
+To clean up and reset the environment:
 
 1. Unmount the filesystem:
    
