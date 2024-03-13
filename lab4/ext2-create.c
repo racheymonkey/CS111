@@ -275,20 +275,6 @@ void write_block_group_descriptor_table(int fd) {
 	}
 }
 
-// Set Bit Function
-// Sets (marks as 1) a specific bit in a bitmap (track allocation status of blocks and inodes in ext2)
-void markUsed(u8 *map_value, u32 bitNumber) {
-	// Calculate byte index in the bitmap array where bit to be set is located
-	u32 byte = (bitNumber - 1) / 8;
-    	// Determine the specific bit within that byte to be marked
-	u32 bit = (bitNumber - 1) % 8;
-
-	// Create a bitmask with the target bit set to 1
-	u8 mask_value = 1 << bit;
-	// Mark the bit as used
-    	map_value[byte] |= mask_value;
-}
-
 void write_block_bitmap(int fd) {
 	off_t off = lseek(fd, BLOCK_OFFSET(BLOCK_BITMAP_BLOCKNO), SEEK_SET);
 	if (off == -1)
@@ -336,10 +322,24 @@ void write_inode_bitmap(int fd) {
 	// TODO It's all yours
 	u8 map_value[BLOCK_SIZE] = {0x00};
 	    
-	// Sets bits for the inodes that are used by the filesystem
-	for (u32 i = 1; i <= LAST_INO; i++)
+	//setting the first 13 blocks as used
+	for (int i = 0; i < 2; i++){
+		for (int j = 0; j < 8; j++)
+		{
+			if (i == 1 && j > 4)
+			{
+				continue;
+			}
+			map_value[i] |= 1 << j;
+		}
+	}
+
+	for (int i = 16; i < 1024; i++)
 	{
-		markUsed(map_value, i);
+		for (int j = 0; j < 8; j++)
+		{
+			map_value[i] |= 1 << j;
+		}
 	}
 	
 	ssize_t map_size = sizeof(map_value);
