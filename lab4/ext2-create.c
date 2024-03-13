@@ -437,7 +437,7 @@ void write_inode_table(int fd) {
 	hello_symbolic.i_mtime = current_time;
 	hello_symbolic.i_links_count = 1;
 	hello_symbolic.i_blocks = 0; // no additional disk blocks are allocated, so this is 0
-	memcpy(&hello_symbolic.i_block[0], target_path, &hello_symbolic.i_size + 1); // store  symbolic link's target path  in the i_block array
+	memcpy(&hello_symbolic.i_block[0], "hello-world", &hello_symbolic.i_size + 1); // store  symbolic link's target path  in the i_block array
 	write_inode(fd, HELLO_INO, &hello_symbolic);
 }
 
