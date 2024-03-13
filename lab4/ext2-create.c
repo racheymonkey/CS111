@@ -270,7 +270,8 @@ void write_block_group_descriptor_table(int fd) {
 	block_group_descriptor.bg_used_dirs_count = 2; // root & lost and found
 
 	ssize_t size = sizeof(block_group_descriptor);
-	if (write(fd, &block_group_descriptor, size) != size) {
+	if (write(fd, &block_group_descriptor, size) != size)
+	{
 		errno_exit("write");
 	}
 }
