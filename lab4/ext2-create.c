@@ -285,31 +285,28 @@ void write_block_bitmap(int fd) {
 	// TODO It's all yours
     	u8 map_value[BLOCK_SIZE] = {0x00}; // Initialize bitmap with all bits set to 0
 
-    	// set bits for blocks explicitly specified
-    	for (int i = 0; i < 2; i++) {
-        	for (int j = 0; j < 8; j++) {
-            	// skip setting bits beyond the 13th
-            		if (i == 1 && j > 4)
-			{
-                		break;
-            		}
-            		map_value[i] |= 1 << j;
-        	}
-    }
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 8; j++) {
+			if (i == 2 && j == 7) { // keep block 24 free
+				continue;
+			}
+			map_value[i] |= 1 << j;
+		}
+	}
 
-    // set all bits to 1 from byte 16 to the end of the bitmap
-    for (int i = 16; i < BLOCK_SIZE; i++)
-    {
-	    for (int j = 0; j < 8; j++)
-	    {
-		    map_value[i] |= 1 << j;
-	    }
-    }
+	map_value[127] |= 1 << 7; // make block 1024 used
 
-    if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE)
-    {
-        errno_exit("write");
-    }
+	//setting 1025th block to 8192th block to used
+	for (int i = 128; i < 1024; i++){
+		for (int j = 0; j < 8; j++) {
+			map_value[i] |= 1 << j;
+		}
+	}
+
+    	if (write(fd, map_value, BLOCK_SIZE) != BLOCK_SIZE)
+    	{
+        	errno_exit("write");
+    	}
 }
 
 void write_inode_bitmap(int fd) {
